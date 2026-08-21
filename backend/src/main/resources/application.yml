@@ -1,6 +1,16 @@
 spring:
-    application:
-        name: smart-crop-backend
+  application:
+    name: smart-crop-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/smart_crop
+    username: smartcrop
+    password: smartcrop
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
 
 server:
-    port: 8080
+  port: 8080
