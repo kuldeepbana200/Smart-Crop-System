@@ -17,5 +17,5 @@ server:
 
 app:
   jwt:
-    secret: ${JWT_SECRET}
-    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    secret: smartcrop-dev-secret-key-2026-super-secure
+    expiration-ms: 86400000
