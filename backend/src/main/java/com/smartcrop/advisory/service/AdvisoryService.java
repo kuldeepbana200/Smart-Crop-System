@@ -20,48 +20,48 @@ import java.time.LocalDateTime;
 @Service
 public class AdvisoryService {
 
-    private final UserRepository userRepository;
-    private final FarmerRepository farmerRepository;
-    private final CropRepository cropRepository;
-    private final WeatherService weatherService;
-    private final AdvisoryRuleEngine advisoryRuleEngine;
+        private final UserRepository userRepository;
+        private final FarmerRepository farmerRepository;
+        private final CropRepository cropRepository;
+        private final WeatherService weatherService;
+        private final AdvisoryRuleEngine advisoryRuleEngine;
 
-    public AdvisoryService(
-            UserRepository userRepository,
-            FarmerRepository farmerRepository,
-            CropRepository cropRepository,
-            WeatherService weatherService,
-            AdvisoryRuleEngine advisoryRuleEngine) {
-        this.userRepository = userRepository;
-        this.farmerRepository = farmerRepository;
-        this.cropRepository = cropRepository;
-        this.weatherService = weatherService;
-        this.advisoryRuleEngine = advisoryRuleEngine;
-    }
+        public AdvisoryService(
+                        UserRepository userRepository,
+                        FarmerRepository farmerRepository,
+                        CropRepository cropRepository,
+                        WeatherService weatherService,
+                        AdvisoryRuleEngine advisoryRuleEngine) {
+                this.userRepository = userRepository;
+                this.farmerRepository = farmerRepository;
+                this.cropRepository = cropRepository;
+                this.weatherService = weatherService;
+                this.advisoryRuleEngine = advisoryRuleEngine;
+        }
 
-    @Transactional(readOnly = true)
-    public AdvisoryResponse generateAdvisory(
-            GenerateAdvisoryRequest request,
-            Authentication authentication) {
-        User user = userRepository.findByEmail(authentication.getName())
-                .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
-        Farmer farmer = farmerRepository.findByUserId(user.getId())
-                .orElseThrow(FarmerProfileNotFoundException::new);
-        Crop crop = cropRepository.findByIdAndFarmerId(request.cropId(), farmer.getId())
-                .orElseThrow(CropNotFoundException::new);
+        @Transactional(readOnly = true)
+        public AdvisoryResponse generateAdvisory(
+                        GenerateAdvisoryRequest request,
+                        Authentication authentication) {
+                User user = userRepository.findByEmail(authentication.getName())
+                                .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
+                Farmer farmer = farmerRepository.findByUserId(user.getId())
+                                .orElseThrow(FarmerProfileNotFoundException::new);
+                Crop crop = cropRepository.findByIdAndFarmerId(request.cropId(), farmer.getId())
+                                .orElseThrow(CropNotFoundException::new);
 
-        WeatherForecastResponse weather = weatherService.getForecast(authentication);
-        return new AdvisoryResponse(
-                crop.getId(),
-                crop.getCropName(),
-                crop.getCropStage(),
-                LocalDateTime.now(),
-                advisoryRuleEngine.generate(crop, weather));
-    }
+                WeatherForecastResponse weather = weatherService.getForecast(authentication);
+                return new AdvisoryResponse(
+                                crop.getId(),
+                                crop.getCropName(),
+                                crop.getCropStage(),
+                                LocalDateTime.now(),
+                                advisoryRuleEngine.generate(crop, weather));
+        }
 
-    public static class FarmerProfileNotFoundException extends RuntimeException {
-    }
+        public static class FarmerProfileNotFoundException extends RuntimeException {
+        }
 
-    public static class CropNotFoundException extends RuntimeException {
-    }
+        public static class CropNotFoundException extends RuntimeException {
+        }
 }
