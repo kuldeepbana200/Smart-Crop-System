@@ -142,18 +142,22 @@ public class DistressAlert {
         return resolvedAt;
     }
 
-    public void acknowledge(String officerNote, LocalDateTime acknowledgedAt) {
+    public void acknowledge(User officer, String officerNote, LocalDateTime acknowledgedAt) {
         if (status != AlertStatus.OPEN) {
             throw new InvalidAlertTransitionException();
         }
+        this.assignedOfficer = officer;
         this.status = AlertStatus.ACKNOWLEDGED;
         this.officerNote = officerNote;
         this.acknowledgedAt = acknowledgedAt;
     }
 
-    public void resolve(String officerNote, LocalDateTime resolvedAt) {
+    public void resolve(User officer, String officerNote, LocalDateTime resolvedAt) {
         if (status != AlertStatus.OPEN && status != AlertStatus.ACKNOWLEDGED) {
             throw new InvalidAlertTransitionException();
+        }
+        if (assignedOfficer == null) {
+            this.assignedOfficer = officer;
         }
         this.status = AlertStatus.RESOLVED;
         this.officerNote = officerNote;

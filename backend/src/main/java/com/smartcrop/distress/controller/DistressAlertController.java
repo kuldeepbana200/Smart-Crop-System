@@ -58,15 +58,17 @@ public class DistressAlertController {
     @PreAuthorize("hasAnyRole('OFFICER', 'ADMIN')")
     public DistressAlertResponse acknowledge(
             @PathVariable Long id,
-            @Valid @RequestBody AcknowledgeAlertRequest request) {
-        return alertService.acknowledge(id, request);
+            @Valid @RequestBody AcknowledgeAlertRequest request,
+            Authentication authentication) {
+        return alertService.acknowledge(id, request, authentication);
     }
 
     @PatchMapping("/officer/alerts/{id}/resolve")
     @PreAuthorize("hasAnyRole('OFFICER', 'ADMIN')")
     public DistressAlertResponse resolve(
             @PathVariable Long id,
-            @Valid @RequestBody ResolveAlertRequest request) {
-        return alertService.resolve(id, request);
+            @Valid @RequestBody ResolveAlertRequest request,
+            Authentication authentication) {
+        return alertService.resolve(id, request, authentication);
     }
 }

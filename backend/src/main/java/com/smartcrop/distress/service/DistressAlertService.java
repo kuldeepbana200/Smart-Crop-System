@@ -116,10 +116,11 @@ public class DistressAlertService {
 
     @Transactional
     public DistressAlertResponse acknowledge(
-            Long alertId, AcknowledgeAlertRequest request) {
+            Long alertId, AcknowledgeAlertRequest request, Authentication authentication) {
         DistressAlert alert = findAlert(alertId);
+        User officer = findAuthenticatedUser(authentication);
         try {
-            alert.acknowledge(request.note().trim(), LocalDateTime.now());
+            alert.acknowledge(officer, request.note().trim(), LocalDateTime.now());
         } catch (DistressAlert.InvalidAlertTransitionException exception) {
             throw new InvalidAlertTransitionException();
         }
@@ -127,10 +128,12 @@ public class DistressAlertService {
     }
 
     @Transactional
-    public DistressAlertResponse resolve(Long alertId, ResolveAlertRequest request) {
+    public DistressAlertResponse resolve(
+            Long alertId, ResolveAlertRequest request, Authentication authentication) {
         DistressAlert alert = findAlert(alertId);
+        User officer = findAuthenticatedUser(authentication);
         try {
-            alert.resolve(request.note().trim(), LocalDateTime.now());
+            alert.resolve(officer, request.note().trim(), LocalDateTime.now());
         } catch (DistressAlert.InvalidAlertTransitionException exception) {
             throw new InvalidAlertTransitionException();
         }
@@ -149,13 +152,17 @@ public class DistressAlertService {
     }
 
     private Farmer findAuthenticatedFarmer(Authentication authentication) {
-        User user = userRepository.findByEmail(authentication.getName())
-                .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
+        User user = findAuthenticatedUser(authentication);
         if (user.getId() == null) {
             throw new FarmerProfileNotFoundException();
         }
         return farmerRepository.findByUserId(user.getId())
                 .orElseThrow(FarmerProfileNotFoundException::new);
+    }
+
+    private User findAuthenticatedUser(Authentication authentication) {
+        return userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
     }
 
     private DistressAlert findAlert(Long alertId) {
