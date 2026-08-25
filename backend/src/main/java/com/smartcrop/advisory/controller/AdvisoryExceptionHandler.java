@@ -3,6 +3,7 @@ package com.smartcrop.advisory.controller;
 import com.smartcrop.advisory.service.AdvisoryRuleEngine.InvalidWeatherDataException;
 import com.smartcrop.advisory.service.AdvisoryService.CropNotFoundException;
 import com.smartcrop.advisory.service.AdvisoryService.FarmerProfileNotFoundException;
+import com.smartcrop.advisory.service.AdvisoryService.AdvisoryNotFoundException;
 import com.smartcrop.weather.client.OpenMeteoClient.MalformedWeatherResponseException;
 import com.smartcrop.weather.client.OpenMeteoClient.WeatherProviderUnavailableException;
 import com.smartcrop.weather.client.OpenMeteoClient.WeatherTimeoutException;
@@ -19,6 +20,11 @@ import java.util.Map;
 
 @RestControllerAdvice(basePackages = "com.smartcrop.advisory")
 public class AdvisoryExceptionHandler {
+
+    @ExceptionHandler(AdvisoryNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleAdvisoryNotFound() {
+        return error(HttpStatus.NOT_FOUND, "Advisory not found");
+    }
 
     @ExceptionHandler(CropNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleCropNotFound() {
@@ -59,7 +65,7 @@ public class AdvisoryExceptionHandler {
         return error(HttpStatus.SERVICE_UNAVAILABLE, "Weather provider is unavailable");
     }
 
-    @ExceptionHandler({MalformedWeatherResponseException.class, InvalidWeatherDataException.class})
+    @ExceptionHandler({ MalformedWeatherResponseException.class, InvalidWeatherDataException.class })
     public ResponseEntity<Map<String, Object>> handleMalformedWeather() {
         return error(HttpStatus.BAD_GATEWAY, "Weather provider returned an invalid response");
     }

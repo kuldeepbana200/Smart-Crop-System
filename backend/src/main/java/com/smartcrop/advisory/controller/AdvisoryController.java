@@ -6,6 +6,8 @@ import com.smartcrop.advisory.service.AdvisoryService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,5 +29,19 @@ public class AdvisoryController {
             @Valid @RequestBody GenerateAdvisoryRequest request,
             Authentication authentication) {
         return advisoryService.generateAdvisory(request, authentication);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('FARMER')")
+    public java.util.List<AdvisoryResponse> getMyAdvisories(Authentication authentication) {
+        return advisoryService.getMyAdvisories(authentication);
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasRole('FARMER')")
+    public AdvisoryResponse getMyAdvisory(
+            @PathVariable Long id,
+            Authentication authentication) {
+        return advisoryService.getMyAdvisory(id, authentication);
     }
 }
