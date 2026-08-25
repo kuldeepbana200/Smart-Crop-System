@@ -98,6 +98,10 @@ public class DistressAlert {
         return assignedOfficer;
     }
 
+    public void assignOfficer(User officer) {
+        this.assignedOfficer = officer;
+    }
+
     public Integer getRiskScore() {
         return riskScore;
     }
@@ -146,6 +150,9 @@ public class DistressAlert {
         if (status != AlertStatus.OPEN) {
             throw new InvalidAlertTransitionException();
         }
+        if (assignedOfficer != null && !assignedOfficer.getId().equals(officer.getId())) {
+            throw new AssignedOfficerConflictException();
+        }
         this.assignedOfficer = officer;
         this.status = AlertStatus.ACKNOWLEDGED;
         this.officerNote = officerNote;
@@ -170,5 +177,8 @@ public class DistressAlert {
     }
 
     public static class InvalidAlertTransitionException extends RuntimeException {
+    }
+
+    public static class AssignedOfficerConflictException extends RuntimeException {
     }
 }

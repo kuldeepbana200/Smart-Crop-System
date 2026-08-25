@@ -11,6 +11,7 @@ import com.smartcrop.distress.entity.DistressAlert;
 import com.smartcrop.farmer.entity.Farmer;
 import com.smartcrop.farmer.repository.FarmerRepository;
 import com.smartcrop.notification.service.NotificationService;
+import com.smartcrop.officer.dto.AssignAlertRequest;
 import com.smartcrop.risk.dto.RiskAssessmentResponse;
 import com.smartcrop.risk.dto.RiskFactor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -131,12 +132,27 @@ public class DistressAlertService {
     }
 
     @Transactional
+    public DistressAlertResponse assign(
+            Long alertId, AssignAlertRequest request) {
+        DistressAlert alert = findAlert(alertId);
+        User officer = userRepository.findById(request.officerId())
+                .orElseThrow(AssignedOfficerNotFoundException::new);
+        if (officer.getRole() != com.smartcrop.auth.entity.Role.OFFICER) {
+            throw new InvalidAssignedOfficerException();
+        }
+        alert.assignOfficer(officer);
+        return toResponse(alertRepository.save(alert));
+    }
+
+    @Transactional
     public DistressAlertResponse acknowledge(
             Long alertId, AcknowledgeAlertRequest request, Authentication authentication) {
         DistressAlert alert = findAlert(alertId);
         User officer = findAuthenticatedUser(authentication);
         try {
             alert.acknowledge(officer, request.note().trim(), LocalDateTime.now());
+        } catch (DistressAlert.AssignedOfficerConflictException exception) {
+            throw new AssignedOfficerConflictException();
         } catch (DistressAlert.InvalidAlertTransitionException exception) {
             throw new InvalidAlertTransitionException();
         }
@@ -259,5 +275,14 @@ public class DistressAlertService {
     }
 
     public static class AlertSerializationException extends RuntimeException {
+    }
+
+    public static class AssignedOfficerNotFoundException extends RuntimeException {
+    }
+
+    public static class InvalidAssignedOfficerException extends RuntimeException {
+    }
+
+    public static class AssignedOfficerConflictException extends RuntimeException {
     }
 }

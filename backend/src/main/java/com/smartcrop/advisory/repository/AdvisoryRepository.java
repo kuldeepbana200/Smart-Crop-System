@@ -10,5 +10,9 @@ public interface AdvisoryRepository extends JpaRepository<Advisory, Long> {
 
     List<Advisory> findByCropFarmerIdOrderByGeneratedAtDesc(Long farmerId);
 
+    List<Advisory> findTop5ByCropFarmerIdOrderByGeneratedAtDesc(Long farmerId);
+
+    long countByCropFarmerId(Long farmerId);
+
     Optional<Advisory> findByIdAndCropFarmerId(Long id, Long farmerId);
 }
