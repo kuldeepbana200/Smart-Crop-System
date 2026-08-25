@@ -1,0 +1,9 @@
+package com.smartcrop.notification.entity;
+
+public enum NotificationType {
+    DISTRESS_ALERT_CREATED,
+    DISTRESS_ALERT_ACKNOWLEDGED,
+    INTERVENTION_CREATED,
+    INTERVENTION_COMPLETED,
+    INTERVENTION_CANCELLED
+}

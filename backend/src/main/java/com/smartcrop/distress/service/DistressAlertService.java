@@ -10,8 +10,10 @@ import com.smartcrop.distress.entity.AlertStatus;
 import com.smartcrop.distress.entity.DistressAlert;
 import com.smartcrop.farmer.entity.Farmer;
 import com.smartcrop.farmer.repository.FarmerRepository;
+import com.smartcrop.notification.service.NotificationService;
 import com.smartcrop.risk.dto.RiskAssessmentResponse;
 import com.smartcrop.risk.dto.RiskFactor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -32,14 +34,25 @@ public class DistressAlertService {
     private final com.smartcrop.distress.repository.DistressAlertRepository alertRepository;
     private final UserRepository userRepository;
     private final FarmerRepository farmerRepository;
+    private final NotificationService notificationService;
+
+    @Autowired
+    public DistressAlertService(
+            com.smartcrop.distress.repository.DistressAlertRepository alertRepository,
+            UserRepository userRepository,
+            FarmerRepository farmerRepository,
+            NotificationService notificationService) {
+        this.alertRepository = alertRepository;
+        this.userRepository = userRepository;
+        this.farmerRepository = farmerRepository;
+        this.notificationService = notificationService;
+    }
 
     public DistressAlertService(
             com.smartcrop.distress.repository.DistressAlertRepository alertRepository,
             UserRepository userRepository,
             FarmerRepository farmerRepository) {
-        this.alertRepository = alertRepository;
-        this.userRepository = userRepository;
-        this.farmerRepository = farmerRepository;
+        this(alertRepository, userRepository, farmerRepository, null);
     }
 
     @Transactional
@@ -79,6 +92,9 @@ public class DistressAlertService {
                 null,
                 null);
         alertRepository.save(alert);
+        if (notificationService != null) {
+            notificationService.notifyDistressAlertCreated(alert);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -124,7 +140,11 @@ public class DistressAlertService {
         } catch (DistressAlert.InvalidAlertTransitionException exception) {
             throw new InvalidAlertTransitionException();
         }
-        return toResponse(alertRepository.save(alert));
+        DistressAlert savedAlert = alertRepository.save(alert);
+        if (notificationService != null) {
+            notificationService.notifyDistressAlertAcknowledged(savedAlert);
+        }
+        return toResponse(savedAlert);
     }
 
     @Transactional
