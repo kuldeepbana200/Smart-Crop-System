@@ -7,11 +7,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "markets")
+@Table(name = "markets", uniqueConstraints = @UniqueConstraint(name = "uk_market_name_district_state", columnNames = { "name", "district", "state" }))
 public class Market {
 
     @Id
@@ -49,12 +50,24 @@ public class Market {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public String getDistrict() {
         return district;
     }
 
+    public void setDistrict(String district) {
+        this.district = district;
+    }
+
     public String getState() {
         return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
     }
 
     public LocalDateTime getCreatedAt() {

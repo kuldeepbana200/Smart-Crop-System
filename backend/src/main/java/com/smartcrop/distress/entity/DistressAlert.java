@@ -2,8 +2,22 @@ package com.smartcrop.distress.entity;
 
 import com.smartcrop.auth.entity.User;
 import com.smartcrop.crop.entity.Crop;
+import com.smartcrop.distress.service.DistressAlertService.AssignedOfficerConflictException;
+import com.smartcrop.distress.service.DistressAlertService.InvalidAlertTransitionException;
 import com.smartcrop.farmer.entity.Farmer;
-import jakarta.persistence.*;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 
@@ -56,15 +70,29 @@ public class DistressAlert {
     private LocalDateTime createdAt;
 
     private LocalDateTime acknowledgedAt;
+
     private LocalDateTime resolvedAt;
 
     public DistressAlert() {
     }
 
-    public DistressAlert(Long id, Farmer farmer, Crop crop, User assignedOfficer,
-            Integer riskScore, String riskLevel, String conditionKey, String dominantFactor,
-            String factorSummary, String recommendedAction, AlertStatus status, String officerNote,
-            LocalDateTime createdAt, LocalDateTime acknowledgedAt, LocalDateTime resolvedAt) {
+    public DistressAlert(
+            Long id,
+            Farmer farmer,
+            Crop crop,
+            User assignedOfficer,
+            Integer riskScore,
+            String riskLevel,
+            String conditionKey,
+            String dominantFactor,
+            String factorSummary,
+            String recommendedAction,
+            AlertStatus status,
+            String officerNote,
+            LocalDateTime createdAt,
+            LocalDateTime acknowledgedAt,
+            LocalDateTime resolvedAt) {
+
         this.id = id;
         this.farmer = farmer;
         this.crop = crop;
@@ -96,10 +124,6 @@ public class DistressAlert {
 
     public User getAssignedOfficer() {
         return assignedOfficer;
-    }
-
-    public void assignOfficer(User officer) {
-        this.assignedOfficer = officer;
     }
 
     public Integer getRiskScore() {
@@ -146,26 +170,58 @@ public class DistressAlert {
         return resolvedAt;
     }
 
-    public void acknowledge(User officer, String officerNote, LocalDateTime acknowledgedAt) {
+    public void assignOfficer(User officer) {
+        if (status == AlertStatus.RESOLVED) {
+            throw new InvalidAlertTransitionException();
+        }
+
+        if (assignedOfficer != null
+                && !assignedOfficer.getId().equals(officer.getId())) {
+            throw new AssignedOfficerConflictException();
+        }
+
+        this.assignedOfficer = officer;
+    }
+
+    public void acknowledge(
+            User officer,
+            String officerNote,
+            LocalDateTime acknowledgedAt) {
+
         if (status != AlertStatus.OPEN) {
             throw new InvalidAlertTransitionException();
         }
-        if (assignedOfficer != null && !assignedOfficer.getId().equals(officer.getId())) {
+
+        if (assignedOfficer != null
+                && !assignedOfficer.getId().equals(officer.getId())) {
             throw new AssignedOfficerConflictException();
         }
+
         this.assignedOfficer = officer;
         this.status = AlertStatus.ACKNOWLEDGED;
         this.officerNote = officerNote;
         this.acknowledgedAt = acknowledgedAt;
     }
 
-    public void resolve(User officer, String officerNote, LocalDateTime resolvedAt) {
-        if (status != AlertStatus.OPEN && status != AlertStatus.ACKNOWLEDGED) {
+    public void resolve(
+            User officer,
+            String officerNote,
+            LocalDateTime resolvedAt) {
+
+        if (status != AlertStatus.OPEN
+                && status != AlertStatus.ACKNOWLEDGED) {
             throw new InvalidAlertTransitionException();
         }
+
+        if (assignedOfficer != null
+                && !assignedOfficer.getId().equals(officer.getId())) {
+            throw new AssignedOfficerConflictException();
+        }
+
         if (assignedOfficer == null) {
             this.assignedOfficer = officer;
         }
+
         this.status = AlertStatus.RESOLVED;
         this.officerNote = officerNote;
         this.resolvedAt = resolvedAt;
@@ -173,12 +229,8 @@ public class DistressAlert {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-    }
-
-    public static class InvalidAlertTransitionException extends RuntimeException {
-    }
-
-    public static class AssignedOfficerConflictException extends RuntimeException {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 }

@@ -1,140 +1,290 @@
 package com.smartcrop.market.service;
 
-import com.smartcrop.market.client.MarketDataProvider;
-import com.smartcrop.market.client.MarketDataProvider.MarketPriceData;
 import com.smartcrop.market.dto.MarketPriceResponse;
 import com.smartcrop.market.entity.Market;
 import com.smartcrop.market.entity.MarketPrice;
-import com.smartcrop.market.repository.MarketPriceRepository;
 import com.smartcrop.market.repository.MarketRepository;
+import com.smartcrop.market.repository.MarketPriceRepository;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 
 @Service
+@Transactional
 public class MarketService {
+
+    private static final Logger logger = LoggerFactory.getLogger(MarketService.class);
 
     private final MarketRepository marketRepository;
     private final MarketPriceRepository marketPriceRepository;
-    private final MarketDataProvider marketDataProvider;
 
     public MarketService(
             MarketRepository marketRepository,
-            MarketPriceRepository marketPriceRepository,
-            MarketDataProvider marketDataProvider) {
+            MarketPriceRepository marketPriceRepository) {
+
         this.marketRepository = marketRepository;
         this.marketPriceRepository = marketPriceRepository;
-        this.marketDataProvider = marketDataProvider;
     }
 
-    @Transactional
-    public List<MarketPriceResponse> getLatestPrices(String cropName, String district, String state) {
-        refreshProviderData();
-        String normalizedCrop = normalizeOptional(cropName);
-        String normalizedDistrict = normalizeOptional(district);
-        String normalizedState = normalizeOptional(state);
-        List<MarketPrice> prices = findPrices(normalizedCrop, normalizedDistrict, normalizedState);
-        return prices.stream().map(this::toResponse).toList();
+    // =========================================================
+    // MARKET OPERATIONS
+    // =========================================================
+
+    public Market findOrCreateMarket(
+            String name,
+            String district,
+            String state) {
+
+        return marketRepository
+                .findByNameAndDistrictAndState(name, district, state)
+                .orElseGet(() -> {
+
+                    Market market = new Market();
+
+                    market.setName(name);
+                    market.setDistrict(district);
+                    market.setState(state);
+
+                    return marketRepository.save(market);
+                });
     }
 
-    @Transactional
-    public List<MarketPriceResponse> getHistory(
-            String cropName, Long marketId, String district, String state) {
-        refreshProviderData();
-        if (marketId != null && !marketRepository.existsById(marketId)) {
-            throw new MarketNotFoundException();
-        }
-        String normalizedCrop = normalizeOptional(cropName);
-        String normalizedDistrict = normalizeOptional(district);
-        String normalizedState = normalizeOptional(state);
+    // =========================================================
+    // MARKET PRICE OPERATIONS
+    // =========================================================
+
+    public void saveMarketPrice(MarketPrice marketPrice) {
+        marketPriceRepository.save(marketPrice);
+    }
+
+    // =========================================================
+    // GET PRICES
+    // =========================================================
+
+    public List<MarketPriceResponse> getPrices(
+            String cropName,
+            String district,
+            String state) {
+
         List<MarketPrice> prices;
-        if (marketId != null && normalizedCrop != null) {
-            prices = marketPriceRepository.findByCropNameIgnoreCaseAndMarketIdOrderByObservedAtDesc(
-                    normalizedCrop, marketId);
-        } else if (normalizedCrop != null && normalizedDistrict != null && normalizedState != null) {
-            prices = marketPriceRepository
-                    .findByCropNameIgnoreCaseAndMarketDistrictIgnoreCaseAndMarketStateIgnoreCaseOrderByObservedAtDesc(
-                            normalizedCrop, normalizedDistrict, normalizedState);
-        } else if (normalizedCrop != null && normalizedDistrict != null) {
-            prices = marketPriceRepository.findByCropNameIgnoreCaseAndMarketDistrictIgnoreCaseOrderByObservedAtDesc(
-                    normalizedCrop, normalizedDistrict);
-        } else if (normalizedCrop != null && normalizedState != null) {
-            prices = marketPriceRepository.findByCropNameIgnoreCaseAndMarketStateIgnoreCaseOrderByObservedAtDesc(
-                    normalizedCrop, normalizedState);
-        } else if (normalizedCrop != null) {
-            prices = marketPriceRepository.findByCropNameIgnoreCaseOrderByObservedAtDesc(normalizedCrop);
+
+        if (cropName != null && !cropName.isBlank()) {
+
+            if (state != null && !state.isBlank()) {
+
+                prices = marketPriceRepository
+                        .findByCropNameAndMarket_State(
+                                cropName,
+                                state);
+
+            } else if (district != null && !district.isBlank()) {
+
+                prices = marketPriceRepository
+                        .findByCropNameAndMarket_District(
+                                cropName,
+                                district);
+
+            } else {
+
+                prices = marketPriceRepository
+                        .findByCropName(cropName);
+            }
+
         } else {
-            prices = marketPriceRepository.findAll().stream()
-                    .sorted(Comparator.comparing(MarketPrice::getObservedAt).reversed())
-                    .toList();
-        }
-        return prices.stream()
-                .filter(price -> matchesLocation(price, normalizedDistrict, normalizedState))
-                .map(this::toResponse)
-                .toList();
-    }
 
-    @Transactional
-    public List<MarketPriceResponse> compare(String cropName, String district, String state) {
-        if (normalizeOptional(cropName) == null) {
-            throw new InvalidMarketFilterException();
-        }
-        return getLatestPrices(cropName, district, state).stream()
-                .sorted(Comparator.comparing(MarketPriceResponse::modalPrice).reversed())
-                .toList();
-    }
+            if (state != null && !state.isBlank()) {
 
-    private List<MarketPrice> findPrices(String cropName, String district, String state) {
-        if (cropName == null && district == null && state == null) {
-            return marketPriceRepository.findAll().stream()
-                    .sorted(Comparator.comparing(MarketPrice::getObservedAt).reversed()).toList();
-        }
-        return marketPriceRepository.findAll().stream()
-                .filter(price -> cropName == null || price.getCropName().equalsIgnoreCase(cropName))
-                .filter(price -> matchesLocation(price, district, state))
-                .sorted(Comparator.comparing(MarketPrice::getObservedAt).reversed())
-                .toList();
-    }
+                prices = marketPriceRepository
+                        .findByMarket_State(state);
 
-    private boolean matchesLocation(MarketPrice price, String district, String state) {
-        return (district == null || price.getMarket().getDistrict().equalsIgnoreCase(district))
-                && (state == null || price.getMarket().getState().equalsIgnoreCase(state));
-    }
+            } else if (district != null && !district.isBlank()) {
 
-    private void refreshProviderData() {
-        for (MarketPriceData data : marketDataProvider.getPrices()) {
-            Market market = marketRepository.findByNameIgnoreCaseAndDistrictIgnoreCaseAndStateIgnoreCase(
-                    data.marketName(), data.district(), data.state())
-                    .orElseGet(() -> marketRepository.save(new Market(
-                            null, data.marketName(), data.district(), data.state(), null)));
-            if (marketPriceRepository.findByMarketIdAndCropNameIgnoreCaseAndVarietyAndUnitAndObservedAt(
-                    market.getId(), data.cropName(), data.variety(), data.unit(), data.observedAt()).isEmpty()) {
-                marketPriceRepository.save(new MarketPrice(
-                        null, market, data.cropName().trim(), data.variety().trim(), data.unit().trim(),
-                        data.minPrice(), data.maxPrice(), data.modalPrice(), data.currency().trim(),
-                        data.observedAt(), null));
+                prices = marketPriceRepository
+                        .findByMarket_District(district);
+
+            } else {
+
+                prices = marketPriceRepository.findAll();
             }
         }
+
+        return prices.stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
-    private String normalizeOptional(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
+    // =========================================================
+    // PRICE HISTORY
+    // =========================================================
+
+    public List<MarketPriceResponse> getPriceHistory(
+            String cropName,
+            String state,
+            LocalDate startDate,
+            LocalDate endDate) {
+
+        logger.info(
+                "Entering getPriceHistory: cropName={}, state={}, startDate={}, endDate={}",
+                cropName,
+                state,
+                startDate,
+                endDate);
+
+        List<MarketPrice> prices;
+
+        /*
+         * IMPORTANT:
+         *
+         * Filtering is performed by the DATABASE.
+         *
+         * We do NOT use findAll()
+         * We do NOT fetch all crop prices and filter in Java.
+         */
+
+        if (cropName != null && !cropName.isBlank()) {
+
+            if (state != null && !state.isBlank()) {
+
+                prices = marketPriceRepository
+                        .findByCropNameAndMarket_StateAndObservedAtBetween(
+                                cropName,
+                                state,
+                                startDate,
+                                endDate);
+
+            } else {
+
+                prices = marketPriceRepository
+                        .findByCropNameAndObservedAtBetween(
+                                cropName,
+                                startDate,
+                                endDate);
+            }
+
+        } else {
+
+            if (state != null && !state.isBlank()) {
+
+                prices = marketPriceRepository
+                        .findByMarket_StateAndObservedAtBetween(
+                                state,
+                                startDate,
+                                endDate);
+
+            } else {
+
+                prices = marketPriceRepository
+                        .findByObservedAtBetween(
+                                startDate,
+                                endDate);
+            }
+        }
+
+        logger.info(
+                "Found {} prices from database before mapping",
+                prices.size());
+
+        List<MarketPriceResponse> result = prices.stream()
+                .sorted(
+                        Comparator.comparing(
+                                MarketPrice::getObservedAt))
+                .map(this::mapToResponse)
+                .toList();
+
+        logger.info(
+                "Returning {} price history responses",
+                result.size());
+
+        return result;
     }
 
-    private MarketPriceResponse toResponse(MarketPrice price) {
+    // =========================================================
+    // PRICE COMPARISON
+    // =========================================================
+
+    public List<MarketPriceResponse> getPriceComparison(
+            String cropName,
+            String state,
+            String district) {
+
+        List<MarketPrice> prices;
+
+        if (state != null && !state.isBlank()) {
+
+            if (district != null && !district.isBlank()) {
+
+                prices = marketPriceRepository
+                        .findByCropNameAndMarket_District(
+                                cropName,
+                                district);
+
+            } else {
+
+                prices = marketPriceRepository
+                        .findByCropNameAndMarket_State(
+                                cropName,
+                                state);
+            }
+
+        } else {
+
+            prices = marketPriceRepository
+                    .findByCropName(cropName);
+        }
+
+        return prices.stream()
+                .sorted(
+                        Comparator
+                                .comparing(MarketPrice::getObservedAt)
+                                .reversed())
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    // =========================================================
+    // LATEST PRICES FOR CROP
+    // =========================================================
+
+    public List<MarketPriceResponse> getLatestForCrop(
+            String cropName) {
+
+        if (cropName == null || cropName.isBlank()) {
+            return List.of();
+        }
+
+        return marketPriceRepository
+                .findByCropName(cropName)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    // =========================================================
+    // ENTITY -> DTO
+    // =========================================================
+
+    private MarketPriceResponse mapToResponse(
+            MarketPrice price) {
+
+        Market market = price.getMarket();
+
         return new MarketPriceResponse(
-                price.getId(), price.getMarket().getId(), price.getMarket().getName(),
-                price.getMarket().getDistrict(), price.getMarket().getState(), price.getCropName(),
-                price.getVariety(), price.getUnit(), price.getMinPrice(), price.getMaxPrice(),
-                price.getModalPrice(), price.getCurrency(), price.getObservedAt());
-    }
-
-    public static class InvalidMarketFilterException extends RuntimeException {
-    }
-
-    public static class MarketNotFoundException extends RuntimeException {
+                price.getId(),
+                market.getState(),
+                market.getDistrict(),
+                market.getName(),
+                price.getCropName(),
+                price.getVariety(),
+                price.getGrade(),
+                price.getObservedAt(),
+                price.getMinPrice(),
+                price.getMaxPrice(),
+                price.getModalPrice());
     }
 }

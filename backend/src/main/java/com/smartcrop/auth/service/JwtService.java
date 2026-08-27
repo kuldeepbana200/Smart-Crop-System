@@ -19,7 +19,7 @@ public class JwtService {
     private final long expirationMillis;
 
     public JwtService(
-            @Value("${app.jwt.secret}") String secret,
+            @Value("${app.jwt.secret:smartcrop-dev-secret-key-2026-super-secure}") String secret,
             @Value("${app.jwt.expiration-ms:86400000}") long expirationMillis) {
         if (secret.length() < 32) {
             throw new IllegalArgumentException("JWT secret must contain at least 32 characters");

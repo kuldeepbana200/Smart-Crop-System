@@ -1,4 +1,7 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
+    
   application:
     name: smart-crop-backend
 
@@ -19,6 +22,8 @@ server:
   port: 8080
 
 app:
+  market:
+    provider: empty
   jwt:
     secret: smartcrop-dev-secret-key-2026-super-secure
     expiration-ms: 86400000

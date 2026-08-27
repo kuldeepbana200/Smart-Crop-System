@@ -16,7 +16,18 @@ public record DashboardResponse(
         List<CropSummary> recentCrops,
         List<AlertSummary> recentAlerts,
         List<AdvisorySummary> recentAdvisories,
-        List<NotificationSummary> recentNotifications) {
+        List<NotificationSummary> recentNotifications,
+        List<MarketSummary> marketSummaries) {
+
+    public DashboardResponse(
+            FarmerSummary farmer,
+            SummaryStatistics statistics,
+            List<CropSummary> recentCrops,
+            List<AlertSummary> recentAlerts,
+            List<AdvisorySummary> recentAdvisories,
+            List<NotificationSummary> recentNotifications) {
+        this(farmer, statistics, recentCrops, recentAlerts, recentAdvisories, recentNotifications, List.of());
+    }
 
     public record FarmerSummary(Long id, String name, String district, String state) {
     }
@@ -99,5 +110,15 @@ public record DashboardResponse(
                     notification.getDistressAlert() == null ? null : notification.getDistressAlert().getId(),
                     notification.getIntervention() == null ? null : notification.getIntervention().getId());
         }
+    }
+
+    public record MarketSummary(
+            String cropName,
+            String bestMarket,
+            java.math.BigDecimal bestModalPrice,
+            String unit,
+            String currency,
+            int marketsTracked,
+            LocalDateTime latestObservation) {
     }
 }

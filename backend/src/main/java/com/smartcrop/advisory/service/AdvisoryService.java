@@ -1,8 +1,8 @@
 package com.smartcrop.advisory.service;
 
+import com.smartcrop.advisory.dto.AdvisoryRecommendation;
 import com.smartcrop.advisory.dto.AdvisoryResponse;
 import com.smartcrop.advisory.dto.GenerateAdvisoryRequest;
-import com.smartcrop.advisory.dto.AdvisoryRecommendation;
 import com.smartcrop.advisory.entity.Advisory;
 import com.smartcrop.advisory.repository.AdvisoryRepository;
 import com.smartcrop.auth.entity.User;
@@ -13,16 +13,16 @@ import com.smartcrop.farmer.entity.Farmer;
 import com.smartcrop.farmer.repository.FarmerRepository;
 import com.smartcrop.weather.dto.WeatherForecastResponse;
 import com.smartcrop.weather.service.WeatherService;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
+@Transactional
 public class AdvisoryService {
 
         private final UserRepository userRepository;
@@ -32,7 +32,6 @@ public class AdvisoryService {
         private final AdvisoryRuleEngine advisoryRuleEngine;
         private final AdvisoryRepository advisoryRepository;
 
-        @Autowired
         public AdvisoryService(
                         UserRepository userRepository,
                         FarmerRepository farmerRepository,
@@ -40,6 +39,7 @@ public class AdvisoryService {
                         WeatherService weatherService,
                         AdvisoryRuleEngine advisoryRuleEngine,
                         AdvisoryRepository advisoryRepository) {
+
                 this.userRepository = userRepository;
                 this.farmerRepository = farmerRepository;
                 this.cropRepository = cropRepository;
@@ -48,73 +48,160 @@ public class AdvisoryService {
                 this.advisoryRepository = advisoryRepository;
         }
 
-        public AdvisoryService(
-                        UserRepository userRepository,
-                        FarmerRepository farmerRepository,
-                        CropRepository cropRepository,
-                        WeatherService weatherService,
-                        AdvisoryRuleEngine advisoryRuleEngine) {
-                this(userRepository, farmerRepository, cropRepository, weatherService,
-                                advisoryRuleEngine, null);
-        }
-
         @Transactional
         public AdvisoryResponse generateAdvisory(
                         GenerateAdvisoryRequest request,
                         Authentication authentication) {
-                User user = userRepository.findByEmail(authentication.getName())
-                                .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
-                Farmer farmer = farmerRepository.findByUserId(user.getId())
+
+                User user = findAuthenticatedUser(authentication);
+
+                Farmer farmer = farmerRepository
+                                .findByUserId(user.getId())
                                 .orElseThrow(FarmerProfileNotFoundException::new);
-                Crop crop = cropRepository.findByIdAndFarmerId(request.cropId(), farmer.getId())
+
+                Crop crop = cropRepository
+                                .findByIdAndFarmerId(request.cropId(), farmer.getId())
                                 .orElseThrow(CropNotFoundException::new);
 
                 WeatherForecastResponse weather = weatherService.getForecast(authentication);
+
+                validateWeather(weather);
+
                 List<AdvisoryRecommendation> recommendations = advisoryRuleEngine.generate(crop, weather);
-                LocalDateTime generatedAt = LocalDateTime.now();
-                if (advisoryRepository == null) {
-                        return toResponse(null, crop, generatedAt, recommendations);
+
+                Advisory advisory = new Advisory();
+
+                advisory.setCrop(crop);
+
+                for (AdvisoryRecommendation recommendation : recommendations) {
+
+                        com.smartcrop.advisory.entity.AdvisoryRecommendation entityRecommendation = new com.smartcrop.advisory.entity.AdvisoryRecommendation(
+                                        null,
+                                        null,
+                                        recommendation.category(),
+                                        recommendation.severity(),
+                                        recommendation.title(),
+                                        recommendation.recommendation(),
+                                        recommendation.reason());
+
+                        advisory.addRecommendation(entityRecommendation);
                 }
 
-                Advisory advisory = new Advisory(null, crop, generatedAt, null);
-                recommendations.forEach(recommendation -> advisory.addRecommendation(
-                                new com.smartcrop.advisory.entity.AdvisoryRecommendation(
-                                                null,
-                                                null,
-                                                recommendation.category(),
-                                                recommendation.severity(),
-                                                recommendation.title(),
-                                                recommendation.recommendation(),
-                                                recommendation.reason())));
-                return toResponse(advisoryRepository.save(advisory));
+                Advisory savedAdvisory = advisoryRepository.save(advisory);
+
+                return toResponse(savedAdvisory);
         }
 
         @Transactional(readOnly = true)
-        public java.util.List<AdvisoryResponse> getMyAdvisories(Authentication authentication) {
+        public List<AdvisoryResponse> getMyAdvisories(
+                        Authentication authentication) {
+
                 Farmer farmer = findAuthenticatedFarmer(authentication);
-                return advisoryRepository.findByCropFarmerIdOrderByGeneratedAtDesc(farmer.getId()).stream()
+
+                return advisoryRepository
+                                .findByCropFarmerIdOrderByGeneratedAtDesc(farmer.getId())
+                                .stream()
                                 .map(this::toResponse)
                                 .toList();
         }
 
         @Transactional(readOnly = true)
-        public AdvisoryResponse getMyAdvisory(Long advisoryId, Authentication authentication) {
+        public AdvisoryResponse getMyAdvisory(
+                        Long advisoryId,
+                        Authentication authentication) {
+
                 Farmer farmer = findAuthenticatedFarmer(authentication);
-                return advisoryRepository.findByIdAndCropFarmerId(advisoryId, farmer.getId())
+
+                return advisoryRepository
+                                .findByIdAndCropFarmerId(
+                                                advisoryId,
+                                                farmer.getId())
                                 .map(this::toResponse)
                                 .orElseThrow(AdvisoryNotFoundException::new);
         }
 
-        private Farmer findAuthenticatedFarmer(Authentication authentication) {
-                User user = userRepository.findByEmail(authentication.getName())
-                                .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
-                return farmerRepository.findByUserId(user.getId())
+        private User findAuthenticatedUser(
+                        Authentication authentication) {
+
+                if (authentication == null ||
+                                authentication.getName() == null ||
+                                authentication.getName().isBlank()) {
+
+                        throw new UsernameNotFoundException(
+                                        "Authenticated user not found");
+                }
+
+                return userRepository
+                                .findByEmail(authentication.getName())
+                                .orElseThrow(() -> new UsernameNotFoundException(
+                                                "Authenticated user not found"));
+        }
+
+        private Farmer findAuthenticatedFarmer(
+                        Authentication authentication) {
+
+                User user = findAuthenticatedUser(authentication);
+
+                return farmerRepository
+                                .findByUserId(user.getId())
                                 .orElseThrow(FarmerProfileNotFoundException::new);
         }
 
-        private AdvisoryResponse toResponse(Advisory advisory) {
-                return toResponse(advisory, advisory.getCrop(), advisory.getGeneratedAt(),
-                                advisory.getRecommendations().stream()
+        private void validateWeather(
+                        WeatherForecastResponse weather) {
+
+                if (weather == null || weather.daily() == null) {
+                        throw new AdvisoryRuleEngine.InvalidWeatherDataException();
+                }
+
+                if (weather.daily().precipitationProbabilityMax() == null
+                                || weather.daily().precipitationProbabilityMax().isEmpty()) {
+
+                        throw new AdvisoryRuleEngine.InvalidWeatherDataException();
+                }
+
+                if (weather.daily().precipitationSum() == null
+                                || weather.daily().precipitationSum().isEmpty()) {
+
+                        throw new AdvisoryRuleEngine.InvalidWeatherDataException();
+                }
+
+                if (weather.daily().temperatureMax() == null
+                                || weather.daily().temperatureMax().isEmpty()) {
+
+                        throw new AdvisoryRuleEngine.InvalidWeatherDataException();
+                }
+
+                if (weather.daily().temperatureMin() == null
+                                || weather.daily().temperatureMin().isEmpty()) {
+
+                        throw new AdvisoryRuleEngine.InvalidWeatherDataException();
+                }
+
+                if (weather.daily().windSpeedMax() == null
+                                || weather.daily().windSpeedMax().isEmpty()) {
+
+                        throw new AdvisoryRuleEngine.InvalidWeatherDataException();
+                }
+
+                if (weather.daily().evapotranspiration() == null
+                                || weather.daily().evapotranspiration().isEmpty()) {
+
+                        throw new AdvisoryRuleEngine.InvalidWeatherDataException();
+                }
+        }
+
+        private AdvisoryResponse toResponse(
+                        Advisory advisory) {
+
+                return new AdvisoryResponse(
+                                advisory.getId(),
+                                advisory.getCrop().getId(),
+                                advisory.getCrop().getCropName(),
+                                advisory.getCrop().getCropStage(),
+                                advisory.getGeneratedAt(),
+                                advisory.getRecommendations()
+                                                .stream()
                                                 .map(recommendation -> new AdvisoryRecommendation(
                                                                 recommendation.getCategory(),
                                                                 recommendation.getSeverity(),
@@ -124,23 +211,15 @@ public class AdvisoryService {
                                                 .toList());
         }
 
-        private AdvisoryResponse toResponse(Advisory advisory, Crop crop,
-                        LocalDateTime generatedAt, java.util.List<AdvisoryRecommendation> recommendations) {
-                return new AdvisoryResponse(
-                                advisory == null ? null : advisory.getId(),
-                                crop.getId(),
-                                crop.getCropName(),
-                                crop.getCropStage(),
-                                generatedAt,
-                                recommendations);
+        public static class FarmerProfileNotFoundException
+                        extends RuntimeException {
         }
 
-        public static class FarmerProfileNotFoundException extends RuntimeException {
+        public static class CropNotFoundException
+                        extends RuntimeException {
         }
 
-        public static class CropNotFoundException extends RuntimeException {
-        }
-
-        public static class AdvisoryNotFoundException extends RuntimeException {
+        public static class AdvisoryNotFoundException
+                        extends RuntimeException {
         }
 }

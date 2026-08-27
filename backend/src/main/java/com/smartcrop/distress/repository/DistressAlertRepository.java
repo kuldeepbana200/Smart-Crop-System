@@ -21,8 +21,6 @@ public interface DistressAlertRepository extends JpaRepository<DistressAlert, Lo
 
     List<DistressAlert> findTop5ByFarmerIdOrderByCreatedAtDesc(Long farmerId);
 
-    long countByFarmerIdAndStatus(AlertStatus status);
-
     long countByFarmerIdAndStatus(Long farmerId, AlertStatus status);
 
     List<DistressAlert> findByFarmerIdAndStatusOrderByCreatedAtDesc(Long farmerId, AlertStatus status);

@@ -1,6 +1,7 @@
 package com.smartcrop.advisory.entity;
 
 import com.smartcrop.crop.entity.Crop;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -39,12 +40,19 @@ public class Advisory {
     public Advisory() {
     }
 
-    public Advisory(Long id, Crop crop, LocalDateTime generatedAt,
+    public Advisory(
+            Long id,
+            Crop crop,
+            LocalDateTime generatedAt,
             List<AdvisoryRecommendation> recommendations) {
+
         this.id = id;
         this.crop = crop;
         this.generatedAt = generatedAt;
-        this.recommendations = recommendations == null ? new ArrayList<>() : recommendations;
+
+        this.recommendations = recommendations == null
+                ? new ArrayList<>()
+                : recommendations;
     }
 
     public Long getId() {
@@ -55,6 +63,10 @@ public class Advisory {
         return crop;
     }
 
+    public void setCrop(Crop crop) {
+        this.crop = crop;
+    }
+
     public LocalDateTime getGeneratedAt() {
         return generatedAt;
     }
@@ -63,13 +75,16 @@ public class Advisory {
         return recommendations;
     }
 
-    public void addRecommendation(AdvisoryRecommendation recommendation) {
+    public void addRecommendation(
+            AdvisoryRecommendation recommendation) {
+
         recommendations.add(recommendation);
         recommendation.setAdvisory(this);
     }
 
     @PrePersist
     protected void onCreate() {
+
         if (generatedAt == null) {
             generatedAt = LocalDateTime.now();
         }
