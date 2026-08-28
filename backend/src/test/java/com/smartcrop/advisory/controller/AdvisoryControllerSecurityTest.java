@@ -1,12 +1,13 @@
 package com.smartcrop.advisory.controller;
 
-import com.smartcrop.advisory.dto.AdvisoryResponse;
 import com.smartcrop.advisory.service.AdvisoryService;
 import com.smartcrop.auth.security.JwtAuthenticationFilter;
 import com.smartcrop.auth.service.CustomUserDetailsService;
 import com.smartcrop.auth.service.JwtService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,10 +25,14 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
@@ -48,28 +53,31 @@ class AdvisoryControllerSecurityTest {
         mockMvc = webAppContextSetup(webApplicationContext)
                 .apply(springSecurity())
                 .build();
-        when(advisoryService.getMyAdvisories(org.mockito.ArgumentMatchers.any()))
+
+        when(advisoryService.getMyAdvisories(any(), anyString()))
                 .thenReturn(List.of());
     }
 
     @Test
     void farmerCanListAdvisories() throws Exception {
-        mockMvc.perform(get("/api/advisories")
-                .with(user("farmer@example.com").roles("FARMER")))
+        mockMvc.perform(
+                get("/api/advisories")
+                        .with(user("farmer@example.com").roles("FARMER")))
                 .andExpect(status().isOk());
     }
 
     @Test
     void officerCannotListFarmerAdvisories() throws Exception {
-        mockMvc.perform(get("/api/advisories")
-                .with(user("officer@example.com").roles("OFFICER")))
+        mockMvc.perform(
+                get("/api/advisories")
+                        .with(user("officer@example.com").roles("OFFICER")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void unauthenticatedUserCannotListAdvisories() throws Exception {
-        mockMvc.perform(get("/api/advisories"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(
+                get("/api/advisories")).andExpect(status().isUnauthorized());
     }
 
     @Configuration(proxyBeanMethods = false)
@@ -79,7 +87,8 @@ class AdvisoryControllerSecurityTest {
     static class TestConfiguration {
 
         @Bean
-        AdvisoryController advisoryController(AdvisoryService service) {
+        AdvisoryController advisoryController(
+                AdvisoryService service) {
             return new AdvisoryController(service);
         }
 
@@ -96,7 +105,9 @@ class AdvisoryControllerSecurityTest {
         @Bean
         JwtAuthenticationFilter jwtAuthenticationFilter() {
             return new JwtAuthenticationFilter(
-                    new JwtService("local-development-secret-that-is-at-least-32-chars", 86_400_000),
+                    new JwtService(
+                            "local-development-secret-that-is-at-least-32-chars",
+                            86_400_000),
                     mock(CustomUserDetailsService.class));
         }
 
@@ -104,13 +115,17 @@ class AdvisoryControllerSecurityTest {
         SecurityFilterChain securityFilterChain(
                 HttpSecurity http,
                 JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+
             return http
                     .csrf(csrf -> csrf.disable())
-                    .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                    .exceptionHandling(exception -> exception
-                            .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                    .sessionManagement(session -> session.sessionCreationPolicy(
+                            SessionCreationPolicy.STATELESS))
+                    .exceptionHandling(exception -> exception.authenticationEntryPoint(
+                            new HttpStatusEntryPoint(
+                                    HttpStatus.UNAUTHORIZED)))
                     .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
-                    .addFilterBefore(jwtAuthenticationFilter,
+                    .addFilterBefore(
+                            jwtAuthenticationFilter,
                             org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                     .build();
         }

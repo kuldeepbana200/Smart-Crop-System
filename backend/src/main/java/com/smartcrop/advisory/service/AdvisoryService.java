@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -72,6 +73,11 @@ public class AdvisoryService {
                 Advisory advisory = new Advisory();
 
                 advisory.setCrop(crop);
+                String language = request.language();
+                if (language == null || language.isBlank()) {
+                        language = "en";
+                }
+                advisory.setLanguage(language);
 
                 for (AdvisoryRecommendation recommendation : recommendations) {
 
@@ -94,13 +100,18 @@ public class AdvisoryService {
 
         @Transactional(readOnly = true)
         public List<AdvisoryResponse> getMyAdvisories(
-                        Authentication authentication) {
+                        Authentication authentication,
+                        String language) {
 
                 Farmer farmer = findAuthenticatedFarmer(authentication);
-
-                return advisoryRepository
-                                .findByCropFarmerIdOrderByGeneratedAtDesc(farmer.getId())
-                                .stream()
+                String lang = (language == null || language.isBlank()) ? "en" : language.toLowerCase();
+                List<Advisory> advisories = advisoryRepository
+                                .findByCropFarmerIdAndLanguageOrderByGeneratedAtDesc(farmer.getId(), lang);
+                if (advisories.isEmpty() && !lang.equals("en")) {
+                        advisories = advisoryRepository
+                                        .findByCropFarmerIdAndLanguageOrderByGeneratedAtDesc(farmer.getId(), "en");
+                }
+                return advisories.stream()
                                 .map(this::toResponse)
                                 .toList();
         }
@@ -108,16 +119,24 @@ public class AdvisoryService {
         @Transactional(readOnly = true)
         public AdvisoryResponse getMyAdvisory(
                         Long advisoryId,
-                        Authentication authentication) {
+                        Authentication authentication,
+                        String language) {
 
                 Farmer farmer = findAuthenticatedFarmer(authentication);
-
-                return advisoryRepository
-                                .findByIdAndCropFarmerId(
-                                                advisoryId,
-                                                farmer.getId())
-                                .map(this::toResponse)
+                String lang = (language == null || language.isBlank()) ? "en" : language.toLowerCase();
+                Advisory advisory = advisoryRepository
+                                .findByIdAndCropFarmerIdAndLanguage(advisoryId, farmer.getId(), lang)
+                                .or(() -> {
+                                        if (lang.equals("en")) {
+                                                return Optional.empty();
+                                        }
+                                        return advisoryRepository
+                                                        .findByIdAndCropFarmerIdAndLanguage(advisoryId, farmer.getId(),
+                                                                        "en");
+                                })
                                 .orElseThrow(AdvisoryNotFoundException::new);
+
+                return toResponse(advisory);
         }
 
         private User findAuthenticatedUser(

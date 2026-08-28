@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Positive;
 public record GenerateAdvisoryRequest(
         @NotNull(message = "Crop ID is required")
         @Positive(message = "Crop ID must be positive")
-        Long cropId
+        Long cropId,
+        String language
 ) {
 }

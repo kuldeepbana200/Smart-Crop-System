@@ -34,9 +34,13 @@ public class Advisory {
     @Column(nullable = false, updatable = false)
     private LocalDateTime generatedAt;
 
+    @Column(nullable = false, length = 2)
+    private String language;
+
     @OneToMany(mappedBy = "advisory", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AdvisoryRecommendation> recommendations = new ArrayList<>();
 
+    // Required by JPA
     public Advisory() {
     }
 
@@ -44,15 +48,15 @@ public class Advisory {
             Long id,
             Crop crop,
             LocalDateTime generatedAt,
-            List<AdvisoryRecommendation> recommendations) {
-
+            List<AdvisoryRecommendation> recommendations,
+            String language) {
         this.id = id;
         this.crop = crop;
         this.generatedAt = generatedAt;
-
         this.recommendations = recommendations == null
                 ? new ArrayList<>()
                 : recommendations;
+        this.language = language;
     }
 
     public Long getId() {
@@ -75,16 +79,21 @@ public class Advisory {
         return recommendations;
     }
 
-    public void addRecommendation(
-            AdvisoryRecommendation recommendation) {
+    public String getLanguage() {
+        return language;
+    }
 
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public void addRecommendation(AdvisoryRecommendation recommendation) {
         recommendations.add(recommendation);
         recommendation.setAdvisory(this);
     }
 
     @PrePersist
     protected void onCreate() {
-
         if (generatedAt == null) {
             generatedAt = LocalDateTime.now();
         }

@@ -3,6 +3,7 @@ package com.smartcrop.auth.security;
 import com.smartcrop.auth.service.AuthService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -55,6 +56,11 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/officer/**").hasAnyRole("OFFICER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/education/resources").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/education/resources/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/education/resources/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/education/resources").hasAnyRole("FARMER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/education/resources/**").hasAnyRole("FARMER", "ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

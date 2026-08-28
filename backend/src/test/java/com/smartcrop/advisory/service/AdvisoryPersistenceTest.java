@@ -44,7 +44,6 @@ class AdvisoryPersistenceTest {
 
         @BeforeEach
         void setUp() {
-
                 userRepository = mock(UserRepository.class);
                 farmerRepository = mock(FarmerRepository.class);
                 cropRepository = mock(CropRepository.class);
@@ -125,7 +124,7 @@ class AdvisoryPersistenceTest {
                                 .thenAnswer(invocation -> invocation.getArgument(0));
 
                 var response = advisoryService.generateAdvisory(
-                                new GenerateAdvisoryRequest(30L),
+                                new GenerateAdvisoryRequest(30L, "en"),
                                 authentication);
 
                 var captor = org.mockito.ArgumentCaptor.forClass(Advisory.class);
@@ -136,6 +135,10 @@ class AdvisoryPersistenceTest {
                 Advisory saved = captor.getValue();
 
                 assertEquals(crop, saved.getCrop());
+
+                assertEquals(
+                                "en",
+                                saved.getLanguage());
 
                 assertEquals(
                                 1,
@@ -163,32 +166,69 @@ class AdvisoryPersistenceTest {
         }
 
         @Test
-        void farmerAdvisoriesAreQueriedByFarmerOwnership() {
+        void farmerAdvisoriesAreQueriedByFarmerOwnershipAndLanguage() {
 
                 when(advisoryRepository
-                                .findByCropFarmerIdOrderByGeneratedAtDesc(20L))
+                                .findByCropFarmerIdAndLanguageOrderByGeneratedAtDesc(
+                                                20L,
+                                                "en"))
                                 .thenReturn(List.of());
 
                 assertEquals(
                                 List.of(),
-                                advisoryService.getMyAdvisories(authentication));
+                                advisoryService.getMyAdvisories(
+                                                authentication,
+                                                "en"));
 
                 verify(advisoryRepository)
-                                .findByCropFarmerIdOrderByGeneratedAtDesc(20L);
+                                .findByCropFarmerIdAndLanguageOrderByGeneratedAtDesc(
+                                                20L,
+                                                "en");
         }
 
         @Test
         void farmerCannotAccessAnotherFarmersAdvisory() {
 
                 when(advisoryRepository
-                                .findByIdAndCropFarmerId(99L, 20L))
+                                .findByIdAndCropFarmerIdAndLanguage(
+                                                99L,
+                                                20L,
+                                                "en"))
                                 .thenReturn(Optional.empty());
 
                 assertThrows(
                                 AdvisoryService.AdvisoryNotFoundException.class,
                                 () -> advisoryService.getMyAdvisory(
                                                 99L,
-                                                authentication));
+                                                authentication,
+                                                "en"));
+        }
+
+        @Test
+        void requestedLanguageIsUsedWhenFetchingAdvisories() {
+
+                when(advisoryRepository
+                                .findByCropFarmerIdAndLanguageOrderByGeneratedAtDesc(
+                                                20L,
+                                                "hi"))
+                                .thenReturn(List.of());
+
+                when(advisoryRepository
+                                .findByCropFarmerIdAndLanguageOrderByGeneratedAtDesc(
+                                                20L,
+                                                "en"))
+                                .thenReturn(List.of());
+
+                assertEquals(
+                                List.of(),
+                                advisoryService.getMyAdvisories(
+                                                authentication,
+                                                "hi"));
+
+                verify(advisoryRepository)
+                                .findByCropFarmerIdAndLanguageOrderByGeneratedAtDesc(
+                                                20L,
+                                                "hi");
         }
 
         private WeatherForecastResponse createValidWeather() {

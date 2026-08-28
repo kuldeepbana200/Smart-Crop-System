@@ -40,7 +40,6 @@ class AdvisoryServiceTest {
 
         @BeforeEach
         void setUp() {
-
                 userRepository = mock(UserRepository.class);
                 farmerRepository = mock(FarmerRepository.class);
                 cropRepository = mock(CropRepository.class);
@@ -120,7 +119,7 @@ class AdvisoryServiceTest {
                                 .thenAnswer(invocation -> invocation.getArgument(0));
 
                 advisoryService.generateAdvisory(
-                                new GenerateAdvisoryRequest(30L),
+                                new GenerateAdvisoryRequest(30L, "en"),
                                 authentication);
 
                 verify(cropRepository)
@@ -158,7 +157,7 @@ class AdvisoryServiceTest {
                 assertThrows(
                                 AdvisoryService.FarmerProfileNotFoundException.class,
                                 () -> advisoryService.generateAdvisory(
-                                                new GenerateAdvisoryRequest(30L),
+                                                new GenerateAdvisoryRequest(30L, "en"),
                                                 authentication));
         }
 
@@ -196,7 +195,7 @@ class AdvisoryServiceTest {
                 AdvisoryService.CropNotFoundException exception = assertThrows(
                                 AdvisoryService.CropNotFoundException.class,
                                 () -> advisoryService.generateAdvisory(
-                                                new GenerateAdvisoryRequest(99L),
+                                                new GenerateAdvisoryRequest(99L, "en"),
                                                 authentication));
 
                 assertEquals(
