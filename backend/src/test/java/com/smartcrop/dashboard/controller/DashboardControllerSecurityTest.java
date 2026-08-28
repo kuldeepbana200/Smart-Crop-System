@@ -5,8 +5,10 @@ import com.smartcrop.auth.service.CustomUserDetailsService;
 import com.smartcrop.auth.service.JwtService;
 import com.smartcrop.dashboard.dto.DashboardResponse;
 import com.smartcrop.dashboard.service.DashboardService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,11 +26,15 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
+
+import java.util.List;
 
 @SpringJUnitWebConfig(classes = DashboardControllerSecurityTest.TestConfiguration.class)
 class DashboardControllerSecurityTest {
@@ -43,30 +49,49 @@ class DashboardControllerSecurityTest {
 
     @BeforeEach
     void setUp() {
+
         mockMvc = webAppContextSetup(webApplicationContext)
                 .apply(springSecurity())
                 .build();
-        when(dashboardService.getDashboard(org.mockito.ArgumentMatchers.any()))
-                .thenReturn(new DashboardResponse(null, null, null, null, null, null));
+
+        when(dashboardService.getDashboard(
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(
+                        new DashboardResponse(
+                                null,
+                                null,
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of(),
+                                List.of()));
     }
 
     @Test
     void authenticatedFarmerCanAccessDashboard() throws Exception {
-        mockMvc.perform(get("/api/dashboard")
-                .with(user("farmer@example.com").roles("FARMER")))
+
+        mockMvc.perform(
+                get("/api/dashboard")
+                        .with(user("farmer@example.com")
+                                .roles("FARMER")))
                 .andExpect(status().isOk());
     }
 
     @Test
     void officerCannotAccessFarmerDashboard() throws Exception {
-        mockMvc.perform(get("/api/dashboard")
-                .with(user("officer@example.com").roles("OFFICER")))
+
+        mockMvc.perform(
+                get("/api/dashboard")
+                        .with(user("officer@example.com")
+                                .roles("OFFICER")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void unauthenticatedUserIsRejected() throws Exception {
-        mockMvc.perform(get("/api/dashboard"))
+
+        mockMvc.perform(
+                get("/api/dashboard"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -77,39 +102,56 @@ class DashboardControllerSecurityTest {
     static class TestConfiguration {
 
         @Bean
-        DashboardController dashboardController(DashboardService service) {
+        DashboardController dashboardController(
+                DashboardService service) {
+
             return new DashboardController(service);
         }
 
         @Bean
         DashboardExceptionHandler dashboardExceptionHandler() {
+
             return new DashboardExceptionHandler();
         }
 
         @Bean
         DashboardService dashboardService() {
+
             return mock(DashboardService.class);
         }
 
         @Bean
         JwtAuthenticationFilter jwtAuthenticationFilter() {
+
             return new JwtAuthenticationFilter(
-                    new JwtService("local-development-secret-that-is-at-least-32-chars", 86_400_000),
+                    new JwtService(
+                            "local-development-secret-that-is-at-least-32-chars",
+                            86_400_000),
                     mock(CustomUserDetailsService.class));
         }
 
         @Bean
         SecurityFilterChain securityFilterChain(
                 HttpSecurity http,
-                JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+                JwtAuthenticationFilter jwtAuthenticationFilter)
+                throws Exception {
+
             return http
                     .csrf(csrf -> csrf.disable())
-                    .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                    .exceptionHandling(exception -> exception
-                            .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+
+                    .sessionManagement(session -> session.sessionCreationPolicy(
+                            SessionCreationPolicy.STATELESS))
+
+                    .exceptionHandling(exception -> exception.authenticationEntryPoint(
+                            new HttpStatusEntryPoint(
+                                    HttpStatus.UNAUTHORIZED)))
+
                     .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
-                    .addFilterBefore(jwtAuthenticationFilter,
+
+                    .addFilterBefore(
+                            jwtAuthenticationFilter,
                             org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+
                     .build();
         }
     }

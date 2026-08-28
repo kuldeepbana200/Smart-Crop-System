@@ -1,7 +1,7 @@
 spring:
   config:
     import: optional:file:.env[.properties]
-    
+
   application:
     name: smart-crop-backend
 
@@ -21,12 +21,18 @@ spring:
 server:
   port: 8080
 
+logging:
+  level:
+    org.springframework.security: DEBUG
+
 app:
   market:
     provider: empty
+
   jwt:
     secret: smartcrop-dev-secret-key-2026-super-secure
     expiration-ms: 86400000
+
   risk-monitoring:
     enabled: true
     fixed-delay-ms: 3600000

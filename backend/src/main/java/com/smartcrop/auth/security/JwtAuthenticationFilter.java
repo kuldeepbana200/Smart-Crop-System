@@ -36,8 +36,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
-        logger.info("Processing request: {} {}", request.getMethod(), request.getRequestURI());
-        if (request.getRequestURI().contains("/history")) {
+        String requestURI = request.getRequestURI();
+        logger.info("JwtAuthenticationFilter processing request: {}", requestURI);
+        // Skip JWT authentication for Swagger/OpenAPI endpoints
+        if (requestURI.startsWith("/swagger-ui/") || requestURI.equals("/swagger-ui.html")
+                || requestURI.startsWith("/v3/api-docs/") || requestURI.equals("/v3/api-docs")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        logger.info("Processing request: {} {}", request.getMethod(), requestURI);
+        if (requestURI.contains("/history")) {
             logger.info("History endpoint detected");
         }
 
@@ -67,21 +76,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    logger.info("Authentication set in SecurityContext: {}", SecurityContextHolder.getContext().getAuthentication());
+                    logger.info("Authentication set in SecurityContext: {}",
+                            SecurityContextHolder.getContext().getAuthentication());
                 } else {
                     logger.warn("Token is invalid for user: {}", username);
                 }
             } else if (username == null) {
                 logger.warn("Could not extract username from token");
             } else {
-                logger.info("Authentication already present in SecurityContext: {}", SecurityContextHolder.getContext().getAuthentication());
+                logger.info("Authentication already present in SecurityContext: {}",
+                        SecurityContextHolder.getContext().getAuthentication());
             }
         } catch (RuntimeException exception) {
             logger.error("Error processing JWT token", exception);
             // Invalid tokens remain unauthenticated and are handled by Spring Security.
         }
 
-        logger.info("Final authentication in SecurityContext: {}", SecurityContextHolder.getContext().getAuthentication());
+        logger.info("Final authentication in SecurityContext: {}",
+                SecurityContextHolder.getContext().getAuthentication());
         filterChain.doFilter(request, response);
     }
 }

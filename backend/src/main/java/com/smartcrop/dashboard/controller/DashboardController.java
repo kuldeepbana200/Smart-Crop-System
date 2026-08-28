@@ -2,6 +2,7 @@ package com.smartcrop.dashboard.controller;
 
 import com.smartcrop.dashboard.dto.DashboardResponse;
 import com.smartcrop.dashboard.service.DashboardService;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,13 +15,16 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
 
-    public DashboardController(DashboardService dashboardService) {
+    public DashboardController(
+            DashboardService dashboardService) {
         this.dashboardService = dashboardService;
     }
 
     @GetMapping
     @PreAuthorize("hasRole('FARMER')")
-    public DashboardResponse getDashboard(Authentication authentication) {
+    public DashboardResponse getDashboard(
+            Authentication authentication) {
+
         return dashboardService.getDashboard(authentication);
     }
 }

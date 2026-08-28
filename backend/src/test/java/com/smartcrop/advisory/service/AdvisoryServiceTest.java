@@ -10,6 +10,7 @@ import com.smartcrop.crop.entity.Crop;
 import com.smartcrop.crop.repository.CropRepository;
 import com.smartcrop.farmer.entity.Farmer;
 import com.smartcrop.farmer.repository.FarmerRepository;
+import com.smartcrop.weather.dto.WeatherForecastResponse;
 import com.smartcrop.weather.service.WeatherService;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -21,184 +22,204 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AdvisoryServiceTest {
 
-    private UserRepository userRepository;
-    private FarmerRepository farmerRepository;
-    private CropRepository cropRepository;
-    private WeatherService weatherService;
-    private AdvisoryRuleEngine ruleEngine;
-    private AdvisoryRepository advisoryRepository;
-    private AdvisoryService advisoryService;
-    private Authentication authentication;
+        private UserRepository userRepository;
+        private FarmerRepository farmerRepository;
+        private CropRepository cropRepository;
+        private WeatherService weatherService;
+        private AdvisoryRuleEngine ruleEngine;
+        private AdvisoryRepository advisoryRepository;
+        private AdvisoryService advisoryService;
+        private Authentication authentication;
 
-    @BeforeEach
-    void setUp() {
+        @BeforeEach
+        void setUp() {
 
-        userRepository = mock(UserRepository.class);
-        farmerRepository = mock(FarmerRepository.class);
-        cropRepository = mock(CropRepository.class);
-        weatherService = mock(WeatherService.class);
-        ruleEngine = mock(AdvisoryRuleEngine.class);
-        advisoryRepository = mock(AdvisoryRepository.class);
+                userRepository = mock(UserRepository.class);
+                farmerRepository = mock(FarmerRepository.class);
+                cropRepository = mock(CropRepository.class);
+                weatherService = mock(WeatherService.class);
+                ruleEngine = mock(AdvisoryRuleEngine.class);
+                advisoryRepository = mock(AdvisoryRepository.class);
 
-        advisoryService = new AdvisoryService(
-                userRepository,
-                farmerRepository,
-                cropRepository,
-                weatherService,
-                ruleEngine,
-                advisoryRepository);
+                advisoryService = new AdvisoryService(
+                                userRepository,
+                                farmerRepository,
+                                cropRepository,
+                                weatherService,
+                                ruleEngine,
+                                advisoryRepository);
 
-        authentication = mock(Authentication.class);
+                authentication = mock(Authentication.class);
 
-        when(authentication.getName())
-                .thenReturn("farmer@example.com");
-    }
+                when(authentication.getName())
+                                .thenReturn("farmer@example.com");
+        }
 
-    @Test
-    void generatesAdvisoryOnlyForAuthenticatedFarmersCrop() {
+        @Test
+        void generatesAdvisoryOnlyForAuthenticatedFarmersCrop() {
 
-        User user = new User(
-                10L,
-                "Farmer",
-                "farmer@example.com",
-                null,
-                "hash",
-                Role.FARMER,
-                null,
-                null);
+                User user = new User(
+                                10L,
+                                "Farmer",
+                                "farmer@example.com",
+                                null,
+                                "hash",
+                                Role.FARMER,
+                                null,
+                                null);
 
-        Farmer farmer = new Farmer(
-                20L,
-                user,
-                "District",
-                "State",
-                1.0,
-                2.0,
-                3.0);
+                Farmer farmer = new Farmer(
+                                20L,
+                                user,
+                                "District",
+                                "State",
+                                1.0,
+                                2.0,
+                                3.0);
 
-        Crop crop = new Crop(
-                30L,
-                farmer,
-                "Rice",
-                "FLOWERING",
-                null,
-                null,
-                null);
+                Crop crop = new Crop(
+                                30L,
+                                farmer,
+                                "Rice",
+                                "FLOWERING",
+                                null,
+                                null,
+                                null);
 
-        AdvisoryRecommendation recommendation = new AdvisoryRecommendation(
-                "IRRIGATION",
-                "ADVISORY",
-                "Irrigation required",
-                "Monitor soil moisture.",
-                "Low rainfall is expected.");
+                when(userRepository.findByEmail("farmer@example.com"))
+                                .thenReturn(Optional.of(user));
 
-        when(userRepository.findByEmail("farmer@example.com"))
-                .thenReturn(Optional.of(user));
+                when(farmerRepository.findByUserId(10L))
+                                .thenReturn(Optional.of(farmer));
 
-        when(farmerRepository.findByUserId(10L))
-                .thenReturn(Optional.of(farmer));
+                when(cropRepository.findByIdAndFarmerId(30L, 20L))
+                                .thenReturn(Optional.of(crop));
 
-        when(cropRepository.findByIdAndFarmerId(30L, 20L))
-                .thenReturn(Optional.of(crop));
+                WeatherForecastResponse weather = createValidWeather();
 
-        when(weatherService.getForecast(authentication))
-                .thenReturn(null);
+                when(weatherService.getForecast(authentication))
+                                .thenReturn(weather);
 
-        when(ruleEngine.generate(crop, null))
-                .thenReturn(List.of(recommendation));
+                when(ruleEngine.generate(crop, weather))
+                                .thenReturn(List.of(
+                                                new AdvisoryRecommendation(
+                                                                "RAINFALL",
+                                                                "WARNING",
+                                                                "Heavy rain",
+                                                                "Delay irrigation.",
+                                                                "Rain is expected.")));
 
-        /*
-         * The service saves the generated Advisory.
-         * Return the same entity passed to save().
-         */
-        when(advisoryRepository.save(org.mockito.ArgumentMatchers.any()))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                when(advisoryRepository.save(any()))
+                                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        advisoryService.generateAdvisory(
-                new GenerateAdvisoryRequest(30L),
-                authentication);
+                advisoryService.generateAdvisory(
+                                new GenerateAdvisoryRequest(30L),
+                                authentication);
 
-        verify(cropRepository)
-                .findByIdAndFarmerId(30L, 20L);
+                verify(cropRepository)
+                                .findByIdAndFarmerId(30L, 20L);
 
-        verify(weatherService)
-                .getForecast(authentication);
+                verify(weatherService)
+                                .getForecast(authentication);
 
-        verify(advisoryRepository)
-                .save(org.mockito.ArgumentMatchers.any());
-    }
+                verify(ruleEngine)
+                                .generate(crop, weather);
 
-    @Test
-    void rejectsMissingFarmerProfileBeforeLookingUpCrop() {
+                verify(advisoryRepository)
+                                .save(any());
+        }
 
-        User user = new User(
-                10L,
-                "Farmer",
-                "farmer@example.com",
-                null,
-                "hash",
-                Role.FARMER,
-                null,
-                null);
+        @Test
+        void rejectsMissingFarmerProfileBeforeLookingUpCrop() {
 
-        when(userRepository.findByEmail("farmer@example.com"))
-                .thenReturn(Optional.of(user));
+                User user = new User(
+                                10L,
+                                "Farmer",
+                                "farmer@example.com",
+                                null,
+                                "hash",
+                                Role.FARMER,
+                                null,
+                                null);
 
-        when(farmerRepository.findByUserId(10L))
-                .thenReturn(Optional.empty());
+                when(userRepository.findByEmail("farmer@example.com"))
+                                .thenReturn(Optional.of(user));
 
-        assertThrows(
-                AdvisoryService.FarmerProfileNotFoundException.class,
-                () -> advisoryService.generateAdvisory(
-                        new GenerateAdvisoryRequest(30L),
-                        authentication));
-    }
+                when(farmerRepository.findByUserId(10L))
+                                .thenReturn(Optional.empty());
 
-    @Test
-    void treatsNonOwnedCropAsNotFound() {
+                assertThrows(
+                                AdvisoryService.FarmerProfileNotFoundException.class,
+                                () -> advisoryService.generateAdvisory(
+                                                new GenerateAdvisoryRequest(30L),
+                                                authentication));
+        }
 
-        User user = new User(
-                10L,
-                "Farmer",
-                "farmer@example.com",
-                null,
-                "hash",
-                Role.FARMER,
-                null,
-                null);
+        @Test
+        void treatsNonOwnedCropAsNotFound() {
 
-        Farmer farmer = new Farmer(
-                20L,
-                user,
-                "District",
-                "State",
-                1.0,
-                2.0,
-                3.0);
+                User user = new User(
+                                10L,
+                                "Farmer",
+                                "farmer@example.com",
+                                null,
+                                "hash",
+                                Role.FARMER,
+                                null,
+                                null);
 
-        when(userRepository.findByEmail("farmer@example.com"))
-                .thenReturn(Optional.of(user));
+                Farmer farmer = new Farmer(
+                                20L,
+                                user,
+                                "District",
+                                "State",
+                                1.0,
+                                2.0,
+                                3.0);
 
-        when(farmerRepository.findByUserId(10L))
-                .thenReturn(Optional.of(farmer));
+                when(userRepository.findByEmail("farmer@example.com"))
+                                .thenReturn(Optional.of(user));
 
-        when(cropRepository.findByIdAndFarmerId(99L, 20L))
-                .thenReturn(Optional.empty());
+                when(farmerRepository.findByUserId(10L))
+                                .thenReturn(Optional.of(farmer));
 
-        AdvisoryService.CropNotFoundException exception = assertThrows(
-                AdvisoryService.CropNotFoundException.class,
-                () -> advisoryService.generateAdvisory(
-                        new GenerateAdvisoryRequest(99L),
-                        authentication));
+                when(cropRepository.findByIdAndFarmerId(99L, 20L))
+                                .thenReturn(Optional.empty());
 
-        assertEquals(
-                AdvisoryService.CropNotFoundException.class,
-                exception.getClass());
-    }
+                AdvisoryService.CropNotFoundException exception = assertThrows(
+                                AdvisoryService.CropNotFoundException.class,
+                                () -> advisoryService.generateAdvisory(
+                                                new GenerateAdvisoryRequest(99L),
+                                                authentication));
+
+                assertEquals(
+                                AdvisoryService.CropNotFoundException.class,
+                                exception.getClass());
+        }
+
+        private WeatherForecastResponse createValidWeather() {
+
+                WeatherForecastResponse.DailyForecast daily = new WeatherForecastResponse.DailyForecast(
+                                List.of("2026-08-27"),
+                                List.of(1),
+                                List.of(30.0),
+                                List.of(20.0),
+                                List.of(2.0),
+                                List.of(20.0),
+                                List.of(15.0),
+                                List.of(3.0));
+
+                return new WeatherForecastResponse(
+                                "Asia/Kolkata",
+                                null,
+                                null,
+                                daily);
+        }
 }

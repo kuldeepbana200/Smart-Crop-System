@@ -3,33 +3,35 @@ package com.smartcrop.dashboard.dto;
 import com.smartcrop.advisory.entity.Advisory;
 import com.smartcrop.crop.entity.Crop;
 import com.smartcrop.distress.entity.DistressAlert;
-import com.smartcrop.intervention.entity.Intervention;
 import com.smartcrop.notification.entity.Notification;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 public record DashboardResponse(
+
         FarmerSummary farmer,
+
         SummaryStatistics statistics,
+
         List<CropSummary> recentCrops,
+
         List<AlertSummary> recentAlerts,
+
         List<AdvisorySummary> recentAdvisories,
+
         List<NotificationSummary> recentNotifications,
+
         List<MarketSummary> marketSummaries) {
 
-    public DashboardResponse(
-            FarmerSummary farmer,
-            SummaryStatistics statistics,
-            List<CropSummary> recentCrops,
-            List<AlertSummary> recentAlerts,
-            List<AdvisorySummary> recentAdvisories,
-            List<NotificationSummary> recentNotifications) {
-        this(farmer, statistics, recentCrops, recentAlerts, recentAdvisories, recentNotifications, List.of());
-    }
-
-    public record FarmerSummary(Long id, String name, String district, String state) {
+    public record FarmerSummary(
+            Long id,
+            String name,
+            String district,
+            String state) {
     }
 
     public record SummaryStatistics(
@@ -51,8 +53,13 @@ public record DashboardResponse(
             LocalDateTime createdAt) {
 
         public static CropSummary from(Crop crop) {
-            return new CropSummary(crop.getId(), crop.getCropName(), crop.getCropStage(),
-                    crop.getSowingDate(), crop.getExpectedHarvestDate(), crop.getCreatedAt());
+            return new CropSummary(
+                    crop.getId(),
+                    crop.getCropName(),
+                    crop.getCropStage(),
+                    crop.getSowingDate(),
+                    crop.getExpectedHarvestDate(),
+                    crop.getCreatedAt());
         }
     }
 
@@ -70,10 +77,18 @@ public record DashboardResponse(
             LocalDateTime resolvedAt) {
 
         public static AlertSummary from(DistressAlert alert) {
-            return new AlertSummary(alert.getId(), alert.getCrop().getId(), alert.getCrop().getCropName(),
-                    alert.getRiskScore(), alert.getRiskLevel(), alert.getDominantFactor(),
-                    alert.getRecommendedAction(), alert.getStatus().name(), alert.getCreatedAt(),
-                    alert.getAcknowledgedAt(), alert.getResolvedAt());
+            return new AlertSummary(
+                    alert.getId(),
+                    alert.getCrop().getId(),
+                    alert.getCrop().getCropName(),
+                    alert.getRiskScore(),
+                    alert.getRiskLevel(),
+                    alert.getDominantFactor(),
+                    alert.getRecommendedAction(),
+                    alert.getStatus().name(),
+                    alert.getCreatedAt(),
+                    alert.getAcknowledgedAt(),
+                    alert.getResolvedAt());
         }
     }
 
@@ -86,9 +101,13 @@ public record DashboardResponse(
             int recommendationCount) {
 
         public static AdvisorySummary from(Advisory advisory) {
-            return new AdvisorySummary(advisory.getId(), advisory.getCrop().getId(),
-                    advisory.getCrop().getCropName(), advisory.getCrop().getCropStage(),
-                    advisory.getGeneratedAt(), advisory.getRecommendations().size());
+            return new AdvisorySummary(
+                    advisory.getId(),
+                    advisory.getCrop().getId(),
+                    advisory.getCrop().getCropName(),
+                    advisory.getCrop().getCropStage(),
+                    advisory.getGeneratedAt(),
+                    advisory.getRecommendations().size());
         }
     }
 
@@ -104,21 +123,30 @@ public record DashboardResponse(
             Long interventionId) {
 
         public static NotificationSummary from(Notification notification) {
-            return new NotificationSummary(notification.getId(), notification.getType().name(),
-                    notification.getTitle(), notification.getMessage(), notification.getStatus().name(),
-                    notification.getCreatedAt(), notification.getReadAt(),
-                    notification.getDistressAlert() == null ? null : notification.getDistressAlert().getId(),
-                    notification.getIntervention() == null ? null : notification.getIntervention().getId());
+            return new NotificationSummary(
+                    notification.getId(),
+                    notification.getType().name(),
+                    notification.getTitle(),
+                    notification.getMessage(),
+                    notification.getStatus().name(),
+                    notification.getCreatedAt(),
+                    notification.getReadAt(),
+                    notification.getDistressAlert() == null
+                            ? null
+                            : notification.getDistressAlert().getId(),
+                    notification.getIntervention() == null
+                            ? null
+                            : notification.getIntervention().getId());
         }
     }
 
     public record MarketSummary(
             String cropName,
             String bestMarket,
-            java.math.BigDecimal bestModalPrice,
+            BigDecimal bestModalPrice,
             String unit,
             String currency,
             int marketsTracked,
-            LocalDateTime latestObservation) {
+            LocalDate latestObservation) {
     }
 }

@@ -18,6 +18,7 @@ import com.smartcrop.intervention.repository.InterventionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
+import java.time.LocalDateTime;
 
 import java.util.Optional;
 
@@ -137,6 +138,18 @@ class InterventionServiceTest {
                 () -> interventionService.update(
                         40L,
                         new UpdateInterventionRequest(InterventionStatus.CANCELLED, null),
+                        authentication));
+    }
+
+    @Test
+    void resolvedAlertCannotCreateIntervention() {
+        alert.resolve(officer, "resolved note", LocalDateTime.now());
+        when(distressAlertRepository.findById(30L)).thenReturn(Optional.of(alert));
+
+        assertThrows(InterventionService.DistressAlertAlreadyResolvedException.class,
+                () -> interventionService.create(
+                        30L,
+                        new CreateInterventionRequest(InterventionType.PHONE_CALL, "Call farmer."),
                         authentication));
     }
 }

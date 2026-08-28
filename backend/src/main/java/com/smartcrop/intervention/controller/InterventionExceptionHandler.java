@@ -4,6 +4,7 @@ import com.smartcrop.intervention.service.InterventionService.DistressAlertNotFo
 import com.smartcrop.intervention.service.InterventionService.InterventionNotFoundException;
 import com.smartcrop.intervention.service.InterventionService.InvalidInterventionTransitionException;
 import com.smartcrop.intervention.service.InterventionService.OfficerAccessDeniedException;
+import com.smartcrop.intervention.service.InterventionService.DistressAlertAlreadyResolvedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -34,6 +35,11 @@ public class InterventionExceptionHandler {
     @ExceptionHandler(OfficerAccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleOfficerAccessDenied() {
         return error(HttpStatus.FORBIDDEN, "Only officers and administrators may manage interventions");
+    }
+
+    @ExceptionHandler(DistressAlertAlreadyResolvedException.class)
+    public ResponseEntity<Map<String, Object>> handleAlertAlreadyResolved() {
+        return error(HttpStatus.BAD_REQUEST, "Cannot create intervention for a resolved distress alert");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

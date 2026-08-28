@@ -4,6 +4,7 @@ import com.smartcrop.auth.entity.Role;
 import com.smartcrop.auth.entity.User;
 import com.smartcrop.auth.repository.UserRepository;
 import com.smartcrop.distress.entity.DistressAlert;
+import com.smartcrop.distress.entity.AlertStatus;
 import com.smartcrop.distress.repository.DistressAlertRepository;
 import com.smartcrop.intervention.dto.CreateInterventionRequest;
 import com.smartcrop.intervention.dto.InterventionResponse;
@@ -55,6 +56,9 @@ public class InterventionService {
             Authentication authentication) {
         User officer = findAuthenticatedOfficer(authentication);
         DistressAlert alert = findAlert(alertId);
+        if (alert.getStatus() == AlertStatus.RESOLVED) {
+            throw new DistressAlertAlreadyResolvedException();
+        }
         Intervention intervention = new Intervention(
                 null,
                 alert,
@@ -153,6 +157,9 @@ public class InterventionService {
     }
 
     public static class InvalidInterventionTransitionException extends RuntimeException {
+    }
+
+    public static class DistressAlertAlreadyResolvedException extends RuntimeException {
     }
 
     public static class OfficerAccessDeniedException extends RuntimeException {

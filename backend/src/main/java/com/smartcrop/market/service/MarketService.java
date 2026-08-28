@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -263,6 +265,24 @@ public class MarketService {
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
+    }
+
+    /**
+     * Get latest prices for multiple crops in a single query.
+     *
+     * @param cropNames list of crop names
+     * @return map of crop name to list of market price responses
+     */
+    public Map<String, List<MarketPriceResponse>> getLatestForCrops(List<String> cropNames) {
+        if (cropNames == null || cropNames.isEmpty()) {
+            return Map.of();
+        }
+        List<MarketPrice> prices = marketPriceRepository.findByCropNameIn(cropNames);
+        return prices.stream()
+                .collect(Collectors.groupingBy(
+                        price -> price.getCropName(),
+                        Collectors.mapping(this::mapToResponse, Collectors.toList())
+                ));
     }
 
     // =========================================================
