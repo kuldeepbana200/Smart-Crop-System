@@ -6,6 +6,8 @@ import com.smartcrop.auth.dto.RegistrationRequest;
 import com.smartcrop.auth.entity.Role;
 import com.smartcrop.auth.entity.User;
 import com.smartcrop.auth.repository.UserRepository;
+import com.smartcrop.farmer.entity.Farmer;
+import com.smartcrop.farmer.repository.FarmerRepository;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,14 +19,17 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final FarmerRepository farmerRepository;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            JwtService jwtService,
+            FarmerRepository farmerRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.farmerRepository = farmerRepository;
     }
 
     @Transactional
@@ -45,6 +50,22 @@ public class AuthService {
                 null);
 
         User savedUser = userRepository.save(user);
+
+        // Automatically create Farmer profile for FARMER role
+        if (savedUser.getRole() == Role.FARMER) {
+            if (!farmerRepository.existsByUserId(savedUser.getId())) {
+                Farmer farmer = new Farmer(
+                        null,
+                        savedUser,
+                        "", // district will be updated later via profile setup
+                        "", // state will be updated later via profile setup
+                        null,
+                        null,
+                        null);
+                farmerRepository.save(farmer);
+            }
+        }
+
         return createAuthenticationResponse(savedUser);
     }
 

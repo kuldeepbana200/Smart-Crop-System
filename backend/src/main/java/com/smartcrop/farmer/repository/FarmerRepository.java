@@ -13,4 +13,8 @@ public interface FarmerRepository extends JpaRepository<Farmer, Long> {
     Optional<Farmer> findByUserId(Long userId);
 
     boolean existsByUserId(Long userId);
+
+    @Override
+    @EntityGraph(attributePaths = {"user"})
+    List<Farmer> findAll();
 }

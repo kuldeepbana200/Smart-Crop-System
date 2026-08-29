@@ -50,18 +50,28 @@ public class FarmerService {
                 User user = userRepository.findByEmail(authentication.getName())
                                 .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
 
-                if (farmerRepository.existsByUserId(user.getId())) {
-                        throw new DuplicateFarmerProfileException();
-                }
-
-                Farmer farmer = new Farmer(
-                                null,
-                                user,
-                                request.district().trim(),
-                                request.state().trim(),
-                                request.latitude(),
-                                request.longitude(),
-                                request.landArea());
+                Farmer farmer = farmerRepository.findByUserId(user.getId())
+                                .map(existingFarmer -> {
+                                    // Update existing farmer
+                                    existingFarmer.setDistrict(request.district().trim());
+                                    existingFarmer.setState(request.state().trim());
+                                    existingFarmer.setLatitude(request.latitude());
+                                    existingFarmer.setLongitude(request.longitude());
+                                    existingFarmer.setLandArea(request.landArea());
+                                    return existingFarmer;
+                                })
+                                .orElseGet(() -> {
+                                    // Create new farmer
+                                    Farmer newFarmer = new Farmer(
+                                            null,
+                                            user,
+                                            request.district().trim(),
+                                            request.state().trim(),
+                                            request.latitude(),
+                                            request.longitude(),
+                                            request.landArea());
+                                    return newFarmer;
+                                });
 
                 return toProfileResponse(farmerRepository.save(farmer), user);
         }
@@ -83,6 +93,7 @@ public class FarmerService {
         public static class FarmerProfileNotFoundException extends RuntimeException {
         }
 
+        // DuplicateFarmerProfileException is no longer thrown; kept for compatibility if needed elsewhere
         public static class DuplicateFarmerProfileException extends RuntimeException {
         }
 }
