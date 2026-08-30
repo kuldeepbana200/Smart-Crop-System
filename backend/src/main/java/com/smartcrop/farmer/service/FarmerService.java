@@ -51,29 +51,44 @@ public class FarmerService {
                                 .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
 
                 Farmer farmer = farmerRepository.findByUserId(user.getId())
-                                .map(existingFarmer -> {
-                                    // Update existing farmer
-                                    existingFarmer.setDistrict(request.district().trim());
-                                    existingFarmer.setState(request.state().trim());
-                                    existingFarmer.setLatitude(request.latitude());
-                                    existingFarmer.setLongitude(request.longitude());
-                                    existingFarmer.setLandArea(request.landArea());
-                                    return existingFarmer;
-                                })
+                                .map(existingFarmer -> updateFarmerFields(existingFarmer, request))
                                 .orElseGet(() -> {
-                                    // Create new farmer
-                                    Farmer newFarmer = new Farmer(
-                                            null,
-                                            user,
-                                            request.district().trim(),
-                                            request.state().trim(),
-                                            request.latitude(),
-                                            request.longitude(),
-                                            request.landArea());
-                                    return newFarmer;
+                                        // Create new farmer
+                                        Farmer newFarmer = new Farmer(
+                                                        null,
+                                                        user,
+                                                        request.district().trim(),
+                                                        request.state().trim(),
+                                                        request.latitude(),
+                                                        request.longitude(),
+                                                        request.landArea());
+                                        return newFarmer;
                                 });
 
                 return toProfileResponse(farmerRepository.save(farmer), user);
+        }
+
+        @Transactional
+        public FarmerProfileResponse updateMyProfile(
+                        CreateFarmerProfileRequest request,
+                        Authentication authentication) {
+                User user = userRepository.findByEmail(authentication.getName())
+                                .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
+
+                Farmer farmer = farmerRepository.findByUserId(user.getId())
+                                .orElseGet(() -> new Farmer(null, user, null, null, null, null, null));
+
+                Farmer updatedFarmer = updateFarmerFields(farmer, request);
+                return toProfileResponse(farmerRepository.save(updatedFarmer), user);
+        }
+
+        private Farmer updateFarmerFields(Farmer farmer, CreateFarmerProfileRequest request) {
+                farmer.setDistrict(request.district().trim());
+                farmer.setState(request.state().trim());
+                farmer.setLatitude(request.latitude());
+                farmer.setLongitude(request.longitude());
+                farmer.setLandArea(request.landArea());
+                return farmer;
         }
 
         private FarmerProfileResponse toProfileResponse(Farmer farmer, User user) {
@@ -93,7 +108,8 @@ public class FarmerService {
         public static class FarmerProfileNotFoundException extends RuntimeException {
         }
 
-        // DuplicateFarmerProfileException is no longer thrown; kept for compatibility if needed elsewhere
+        // DuplicateFarmerProfileException is no longer thrown; kept for compatibility
+        // if needed elsewhere
         public static class DuplicateFarmerProfileException extends RuntimeException {
         }
 }

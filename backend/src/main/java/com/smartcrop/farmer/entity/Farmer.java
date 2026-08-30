@@ -1,6 +1,7 @@
 package com.smartcrop.farmer.entity;
 
 import com.smartcrop.auth.entity.User;
+import jakarta.validation.constraints.Min;
 import jakarta.persistence.*;
 
 @Entity
@@ -15,16 +16,17 @@ public class Farmer {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @Column(nullable = false)
+    @Column(name = "district", nullable = true)
     private String district;
 
-    @Column(nullable = false)
+    @Column(name = "state", nullable = true)
     private String state;
 
     private Double latitude;
 
     private Double longitude;
 
+    @Min(value = 0, message = "Land area must be greater than or equal to 0")
     private Double landArea;
 
     public Farmer() {
@@ -47,6 +49,10 @@ public class Farmer {
 
     public User getUser() {
         return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 
     public String getDistrict() {

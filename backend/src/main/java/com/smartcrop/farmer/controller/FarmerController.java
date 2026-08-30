@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,7 +25,7 @@ public class FarmerController {
         this.farmerService = farmerService;
     }
 
-    @GetMapping("/me")
+    @GetMapping({ "/me", "/profile" })
     @PreAuthorize("hasRole('FARMER')")
     public FarmerProfileResponse getMyProfile(Authentication authentication) {
         return farmerService.getMyProfile(authentication);
@@ -37,5 +38,13 @@ public class FarmerController {
             Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(farmerService.createProfile(request, authentication));
+    }
+
+    @PutMapping({ "/me", "/profile" })
+    @PreAuthorize("hasRole('FARMER')")
+    public FarmerProfileResponse updateMyProfile(
+            @Valid @RequestBody CreateFarmerProfileRequest request,
+            Authentication authentication) {
+        return farmerService.updateMyProfile(request, authentication);
     }
 }

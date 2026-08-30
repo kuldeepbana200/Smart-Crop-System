@@ -1,6 +1,7 @@
 package com.smartcrop.auth.security;
 
-import com.smartcrop.auth.service.AuthService;
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -15,56 +16,159 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-    }
+        public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+                this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
-        return configuration.getAuthenticationManager();
-    }
+        @Bean
+        public AuthenticationManager authenticationManager(
+                        AuthenticationConfiguration configuration) throws Exception {
+                return configuration.getAuthenticationManager();
+        }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
-                .cors(Customizer.withDefaults())
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**",
-                                "/v3/api-docs",
-                                "/error")
-                        .permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/officer/**").hasAnyRole("OFFICER", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/education/resources").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/education/resources/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/education/resources/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/education/resources").hasAnyRole("FARMER", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/education/resources/**").hasAnyRole("FARMER", "ADMIN")
-                        .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .build();
-    }
+        // =========================
+        // CORS CONFIGURATION
+        // =========================
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+
+                CorsConfiguration configuration = new CorsConfiguration();
+
+                configuration.setAllowedOrigins(
+                                List.of("http://localhost:5173"));
+
+                configuration.setAllowedMethods(
+                                List.of(
+                                                "GET",
+                                                "POST",
+                                                "PUT",
+                                                "PATCH",
+                                                "DELETE",
+                                                "OPTIONS"));
+
+                configuration.setAllowedHeaders(
+                                List.of(
+                                                "Authorization",
+                                                "Content-Type",
+                                                "Accept"));
+
+                configuration.setAllowCredentials(true);
+
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+                source.registerCorsConfiguration("/**", configuration);
+
+                return source;
+        }
+
+        @Bean
+        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+                return http
+
+                                // REST API - disable CSRF
+                                .csrf(csrf -> csrf.disable())
+
+                                // Enable CORS
+                                .cors(Customizer.withDefaults())
+
+                                // JWT authentication -> stateless
+                                .sessionManagement(session -> session.sessionCreationPolicy(
+                                                SessionCreationPolicy.STATELESS))
+
+                                // Return 401 for unauthenticated requests
+                                .exceptionHandling(exception -> exception.authenticationEntryPoint(
+                                                new HttpStatusEntryPoint(
+                                                                HttpStatus.UNAUTHORIZED)))
+
+                                .authorizeHttpRequests(authorize -> authorize
+
+                                                // =========================
+                                                // PUBLIC AUTH ENDPOINTS
+                                                // =========================
+                                                .requestMatchers(
+                                                                "/api/auth/register",
+                                                                "/api/auth/login",
+                                                                "/api/auth/send-otp",
+                                                                "/api/auth/verify-otp",
+                                                                "/api/auth/resend-otp")
+                                                .permitAll()
+
+                                                // =========================
+                                                // SWAGGER / OPENAPI
+                                                // =========================
+                                                .requestMatchers(
+                                                                "/swagger-ui/**",
+                                                                "/swagger-ui.html",
+                                                                "/v3/api-docs/**",
+                                                                "/v3/api-docs",
+                                                                "/error")
+                                                .permitAll()
+
+                                                // =========================
+                                                // ADMIN
+                                                // =========================
+                                                .requestMatchers("/api/admin/**")
+                                                .hasRole("ADMIN")
+
+                                                // =========================
+                                                // OFFICER
+                                                // =========================
+                                                .requestMatchers("/api/officer/**")
+                                                .hasAnyRole("OFFICER", "ADMIN")
+
+                                                // =========================
+                                                // EDUCATION
+                                                // =========================
+                                                .requestMatchers(
+                                                                HttpMethod.POST,
+                                                                "/api/education/resources")
+                                                .hasRole("ADMIN")
+
+                                                .requestMatchers(
+                                                                HttpMethod.PUT,
+                                                                "/api/education/resources/**")
+                                                .hasRole("ADMIN")
+
+                                                .requestMatchers(
+                                                                HttpMethod.DELETE,
+                                                                "/api/education/resources/**")
+                                                .hasRole("ADMIN")
+
+                                                .requestMatchers(
+                                                                HttpMethod.GET,
+                                                                "/api/education/resources",
+                                                                "/api/education/resources/**")
+                                                .hasAnyRole("FARMER", "ADMIN")
+
+                                                // =========================
+                                                // EVERYTHING ELSE
+                                                // =========================
+                                                .anyRequest().authenticated())
+
+                                // JWT filter
+                                .addFilterBefore(
+                                                jwtAuthenticationFilter,
+                                                UsernamePasswordAuthenticationFilter.class)
+
+                                .build();
+        }
 }

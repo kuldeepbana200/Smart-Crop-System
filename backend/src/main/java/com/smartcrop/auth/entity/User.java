@@ -33,7 +33,15 @@ public class User {
 
     private LocalDateTime updatedAt;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean phoneVerified;
+
+    @Column(nullable = false, length = 2, columnDefinition = "varchar(2) default 'en'")
+    private String preferredLanguage;
+
     public User() {
+        this.phoneVerified = false;
+        this.preferredLanguage = "en"; // default to English
     }
 
     public User(Long id, String name, String email, String phone, String password,
@@ -46,6 +54,8 @@ public class User {
         this.role = role;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.phoneVerified = false;
+        this.preferredLanguage = "en"; // default to English
     }
 
     public Long getId() {
@@ -70,6 +80,22 @@ public class User {
 
     public Role getRole() {
         return role;
+    }
+
+    public boolean isPhoneVerified() {
+        return phoneVerified;
+    }
+
+    public void setPhoneVerified(boolean phoneVerified) {
+        this.phoneVerified = phoneVerified;
+    }
+
+    public String getPreferredLanguage() {
+        return preferredLanguage;
+    }
+
+    public void setPreferredLanguage(String preferredLanguage) {
+        this.preferredLanguage = preferredLanguage;
     }
 
     @PrePersist

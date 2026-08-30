@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.Instant;
 import java.util.Map;
 
-@RestControllerAdvice(basePackages = "com.smartcrop.farmer")
+@RestControllerAdvice(basePackages = "com.smartcrop")
 public class FarmerExceptionHandler {
 
     @ExceptionHandler(DuplicateFarmerProfileException.class)
