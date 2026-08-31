@@ -27,7 +27,7 @@ logging:
 
 app:
   market:
-    provider: empty
+    provider: groq
 
   jwt:
     secret: smartcrop-dev-secret-key-2026-super-secure
@@ -36,3 +36,9 @@ app:
   risk-monitoring:
     enabled: true
     fixed-delay-ms: 3600000
+
+  groq:
+    api-key: ${GROQ_API_KEY:}
+
+  youtube:
+    api-key: ${YOUTUBE_API_KEY:}

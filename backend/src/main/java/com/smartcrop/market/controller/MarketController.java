@@ -1,5 +1,9 @@
 package com.smartcrop.market.controller;
 
+import com.smartcrop.auth.entity.User;
+import com.smartcrop.auth.repository.UserRepository;
+import com.smartcrop.farmer.entity.Farmer;
+import com.smartcrop.farmer.repository.FarmerRepository;
 import com.smartcrop.market.dto.MarketPriceResponse;
 import com.smartcrop.market.service.MarketService;
 
@@ -9,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,10 +31,17 @@ public class MarketController {
     private static final Logger logger = LoggerFactory.getLogger(MarketController.class);
 
     private final MarketService marketService;
+    private final UserRepository userRepository;
+    private final FarmerRepository farmerRepository;
 
     @Autowired
-    public MarketController(MarketService marketService) {
+    public MarketController(
+            MarketService marketService,
+            UserRepository userRepository,
+            FarmerRepository farmerRepository) {
         this.marketService = marketService;
+        this.userRepository = userRepository;
+        this.farmerRepository = farmerRepository;
     }
 
     /**
@@ -40,11 +53,13 @@ public class MarketController {
      */
     @GetMapping
     public ResponseEntity<List<MarketPriceResponse>> getPrices(
+            Authentication authentication,
             @RequestParam(required = false) String cropName,
             @RequestParam(required = false) String district,
             @RequestParam(required = false) String state) {
 
-        List<MarketPriceResponse> prices = marketService.getPrices(cropName, district, state);
+        Farmer farmer = resolveFarmer(authentication);
+        List<MarketPriceResponse> prices = marketService.getPricesForFarmer(farmer, cropName, district, state);
 
         return ResponseEntity.ok(prices);
     }
@@ -67,6 +82,7 @@ public class MarketController {
      */
     @GetMapping("/history")
     public ResponseEntity<List<MarketPriceResponse>> getPriceHistory(
+            Authentication authentication,
 
             @RequestParam(required = false) String cropName,
 
@@ -99,7 +115,9 @@ public class MarketController {
                 startDate,
                 endDate);
 
-        List<MarketPriceResponse> history = marketService.getPriceHistory(
+        Farmer farmer = resolveFarmer(authentication);
+        List<MarketPriceResponse> history = marketService.getPriceHistoryForFarmer(
+                farmer,
                 cropName,
                 state,
                 startDate,
@@ -116,6 +134,7 @@ public class MarketController {
      */
     @GetMapping("/compare")
     public ResponseEntity<List<MarketPriceResponse>> getPriceComparison(
+            Authentication authentication,
 
             @RequestParam String cropName,
 
@@ -123,11 +142,23 @@ public class MarketController {
 
             @RequestParam(required = false) String district) {
 
-        List<MarketPriceResponse> comparison = marketService.getPriceComparison(
+        Farmer farmer = resolveFarmer(authentication);
+        List<MarketPriceResponse> comparison = marketService.getPriceComparisonForFarmer(
+                farmer,
                 cropName,
                 state,
                 district);
 
         return ResponseEntity.ok(comparison);
+    }
+
+    private Farmer resolveFarmer(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            return null;
+        }
+
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
+        return farmerRepository.findByUserId(user.getId()).orElse(null);
     }
 }

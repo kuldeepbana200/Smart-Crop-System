@@ -235,17 +235,17 @@ export const marketService = {
     }),
 };
 
+export const marketAdviceService = {
+  getMarketAdvice: () =>
+    api.post("/ai/market-advice", {}),
+};
+
 
 // =========================
 // EDUCATION
 // =========================
 
 export const educationService = {
-  getResources: (filters = {}) =>
-    api.get("/education/resources", {
-      params: filters,
-    }),
-
-  getResource: (id) =>
-    api.get(`/education/resources/${id}`),
+  getAIEducation: () =>
+    api.post("/ai/education", {}),
 };

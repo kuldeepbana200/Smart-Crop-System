@@ -16,6 +16,7 @@ public class MarketPriceResponse {
     private Double modalPrice;
     private String unit = "quintal"; // Default unit
     private String currency = "INR"; // Default currency
+    private String source = "verified";
 
     // Constructors
     public MarketPriceResponse() {
@@ -140,6 +141,14 @@ public class MarketPriceResponse {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
     }
 
     // Methods expected by DashboardService

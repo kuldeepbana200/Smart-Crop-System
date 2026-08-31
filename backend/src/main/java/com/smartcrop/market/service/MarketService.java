@@ -1,5 +1,6 @@
 package com.smartcrop.market.service;
 
+import com.smartcrop.farmer.entity.Farmer;
 import com.smartcrop.market.dto.MarketPriceResponse;
 import com.smartcrop.market.entity.Market;
 import com.smartcrop.market.entity.MarketPrice;
@@ -25,13 +26,16 @@ public class MarketService {
 
         private final MarketRepository marketRepository;
         private final MarketPriceRepository marketPriceRepository;
+        private final GroqMarketDataService groqMarketDataService;
 
         public MarketService(
                         MarketRepository marketRepository,
-                        MarketPriceRepository marketPriceRepository) {
+                        MarketPriceRepository marketPriceRepository,
+                        GroqMarketDataService groqMarketDataService) {
 
                 this.marketRepository = marketRepository;
                 this.marketPriceRepository = marketPriceRepository;
+                this.groqMarketDataService = groqMarketDataService;
         }
 
         // =========================================================
@@ -68,6 +72,26 @@ public class MarketService {
         // =========================================================
         // GET PRICES
         // =========================================================
+
+        public List<MarketPriceResponse> getPricesForFarmer(
+                        Farmer farmer,
+                        String cropName,
+                        String district,
+                        String state) {
+
+                if (farmer != null) {
+                        List<MarketPriceResponse> generated = groqMarketDataService.getPricesForFarmer(
+                                        farmer,
+                                        cropName,
+                                        district,
+                                        state);
+                        if (!generated.isEmpty()) {
+                                return generated;
+                        }
+                }
+
+                return getPrices(cropName, district, state);
+        }
 
         public List<MarketPriceResponse> getPrices(
                         String cropName,
@@ -124,6 +148,32 @@ public class MarketService {
         // =========================================================
         // PRICE HISTORY
         // =========================================================
+
+        public List<MarketPriceResponse> getPriceHistoryForFarmer(
+                        Farmer farmer,
+                        String cropName,
+                        String state,
+                        LocalDate startDate,
+                        LocalDate endDate) {
+
+                if (farmer != null) {
+                        List<MarketPriceResponse> generated = groqMarketDataService.getPricesForFarmer(
+                                        farmer,
+                                        cropName,
+                                        farmer.getDistrict(),
+                                        farmer.getState());
+                        if (!generated.isEmpty()) {
+                                return generated.stream()
+                                                .filter(price -> price.getArrivalDate() != null)
+                                                .filter(price -> !price.getArrivalDate().isBefore(startDate))
+                                                .filter(price -> !price.getArrivalDate().isAfter(endDate))
+                                                .sorted(Comparator.comparing(MarketPriceResponse::getArrivalDate))
+                                                .toList();
+                        }
+                }
+
+                return getPriceHistory(cropName, state, startDate, endDate);
+        }
 
         public List<MarketPriceResponse> getPriceHistory(
                         String cropName,
@@ -210,6 +260,26 @@ public class MarketService {
         // PRICE COMPARISON
         // =========================================================
 
+        public List<MarketPriceResponse> getPriceComparisonForFarmer(
+                        Farmer farmer,
+                        String cropName,
+                        String state,
+                        String district) {
+
+                if (farmer != null) {
+                        List<MarketPriceResponse> generated = groqMarketDataService.getPricesForFarmer(
+                                        farmer,
+                                        cropName,
+                                        district,
+                                        state);
+                        if (!generated.isEmpty()) {
+                                return generated;
+                        }
+                }
+
+                return getPriceComparison(cropName, state, district);
+        }
+
         public List<MarketPriceResponse> getPriceComparison(
                         String cropName,
                         String state,
@@ -293,7 +363,7 @@ public class MarketService {
 
                 Market market = price.getMarket();
 
-                return new MarketPriceResponse(
+                MarketPriceResponse response = new MarketPriceResponse(
                                 price.getId(),
                                 market.getState(),
                                 market.getDistrict(),
@@ -305,5 +375,7 @@ public class MarketService {
                                 price.getMinPrice(),
                                 price.getMaxPrice(),
                                 price.getModalPrice());
+                response.setSource("verified");
+                return response;
         }
 }

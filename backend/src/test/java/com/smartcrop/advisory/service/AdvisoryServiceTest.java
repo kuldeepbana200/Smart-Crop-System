@@ -10,6 +10,8 @@ import com.smartcrop.crop.entity.Crop;
 import com.smartcrop.crop.repository.CropRepository;
 import com.smartcrop.farmer.entity.Farmer;
 import com.smartcrop.farmer.repository.FarmerRepository;
+import com.smartcrop.notification.service.NotificationService;
+import com.smartcrop.risk.engine.RiskEngine;
 import com.smartcrop.weather.dto.WeatherForecastResponse;
 import com.smartcrop.weather.service.WeatherService;
 
@@ -34,6 +36,9 @@ class AdvisoryServiceTest {
         private CropRepository cropRepository;
         private WeatherService weatherService;
         private AdvisoryRuleEngine ruleEngine;
+        private RiskEngine riskEngine;
+        private GroqAdvisoryService groqAdvisoryService;
+        private NotificationService notificationService;
         private AdvisoryRepository advisoryRepository;
         private AdvisoryService advisoryService;
         private Authentication authentication;
@@ -45,6 +50,9 @@ class AdvisoryServiceTest {
                 cropRepository = mock(CropRepository.class);
                 weatherService = mock(WeatherService.class);
                 ruleEngine = mock(AdvisoryRuleEngine.class);
+                riskEngine = mock(RiskEngine.class);
+                groqAdvisoryService = mock(GroqAdvisoryService.class);
+                notificationService = mock(NotificationService.class);
                 advisoryRepository = mock(AdvisoryRepository.class);
 
                 advisoryService = new AdvisoryService(
@@ -53,6 +61,9 @@ class AdvisoryServiceTest {
                                 cropRepository,
                                 weatherService,
                                 ruleEngine,
+                                riskEngine,
+                                groqAdvisoryService,
+                                notificationService,
                                 advisoryRepository);
 
                 authentication = mock(Authentication.class);
@@ -133,6 +144,67 @@ class AdvisoryServiceTest {
 
                 verify(advisoryRepository)
                                 .save(any());
+        }
+
+        @Test
+        @Test
+        void generatesGroqAdvisoryAndCreatesHighPriorityNotification() {
+
+                User user = new User(
+                                10L,
+                                "Farmer",
+                                "farmer@example.com",
+                                null,
+                                "hash",
+                                Role.FARMER,
+                                null,
+                                null);
+
+                Farmer farmer = new Farmer(
+                                20L,
+                                user,
+                                "District",
+                                "State",
+                                1.0,
+                                2.0,
+                                3.0);
+
+                Crop crop = new Crop(
+                                30L,
+                                farmer,
+                                "Rice",
+                                "FLOWERING",
+                                null,
+                                null,
+                                null);
+
+                when(userRepository.findByEmail("farmer@example.com"))
+                                .thenReturn(Optional.of(user));
+                when(farmerRepository.findByUserId(10L))
+                                .thenReturn(Optional.of(farmer));
+                when(cropRepository.findByIdAndFarmerId(30L, 20L))
+                                .thenReturn(Optional.of(crop));
+
+                WeatherForecastResponse weather = createValidWeather();
+                when(weatherService.getForecast(authentication))
+                                .thenReturn(weather);
+                when(riskEngine.assess(crop, weather))
+                                .thenReturn(new RiskEngine.RiskResult(80, "HIGH", List.of(), "Inspect crop."));
+                when(groqAdvisoryService.generateForFarmer(farmer, crop, weather, riskEngine.assess(crop, weather),
+                                "en"))
+                                .thenReturn(List.of(
+                                                new AdvisoryRecommendation(
+                                                                "TEMPERATURE",
+                                                                "URGENT",
+                                                                "Extreme heat expected",
+                                                                "Irrigate during cooler hours.",
+                                                                "Heat stress risk is high.")));
+                when(advisoryRepository.save(any()))
+                                .thenAnswer(invocation -> invocation.getArgument(0));
+
+                advisoryService.generateAdvisory(new GenerateAdvisoryRequest(30L, "en"), authentication);
+
+                verify(notificationService).notifyAdvisoryGenerated(user, crop, any());
         }
 
         @Test
