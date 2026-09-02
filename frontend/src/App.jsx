@@ -63,7 +63,7 @@ function App() {
                     <Link to="/dashboard">
                       <img
                         className="h-8 w-auto"
-                        src="https://via.placeholder.com/40"
+                        src="/favicon.svg"
                         alt="Smart Crop Logo"
                       />
                     </Link>

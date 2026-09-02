@@ -36,11 +36,11 @@ const labelsByLanguage = {
     date: "Date",
     trend: "Price Trend",
     compare: "Market Comparison",
-    aiInsight: "AI Market Interpretation",
+    aiInsight: "Market Advice",
     aiDisclaimerShort: "AI interpretation based on real data",
     aiDisclaimer:
       "Verify the latest price with your local mandi before selling.",
-    noInsight: "AI market interpretation is not available right now.",
+    noInsight: "Market advice is not available right now.",
     retry: "Try again",
     loading: "Loading market data...",
     noCrops:
@@ -85,11 +85,11 @@ const labelsByLanguage = {
     date: "तारीख",
     trend: "कीमत का रुझान",
     compare: "बाजार तुलना",
-    aiInsight: "AI बाजार व्याख्या",
+    aiInsight: "बाजार सलाह",
     aiDisclaimerShort: "वास्तविक डेटा पर आधारित AI व्याख्या",
     aiDisclaimer:
       "उपलब्ध बाजार डेटा के आधार पर AI-जनित व्याख्या। बेचने से पहले अपने स्थानीय मंडी से नवीनतम कीमत सत्यापित करें।",
-    noInsight: "AI बाजार व्याख्या अभी उपलब्ध नहीं है।",
+    noInsight: "बाजार सलाह अभी उपलब्ध नहीं है।",
     retry: "फिर से प्रयास करें",
     loading: "बाजार डेटा लोड हो रहा है...",
     noCrops:
@@ -133,11 +133,11 @@ const labelsByLanguage = {
     date: "ତାରିଖ",
     trend: "ମୂଲ୍ୟ ପ୍ରବୃତ୍ତି",
     compare: "ବଜାର ତୁଳନା",
-    aiInsight: "AI ବଜାର ବ୍ୟାଖ୍ୟା",
+    aiInsight: "ବଜାର ପରାମର୍ଶ",
     aiDisclaimerShort: "ବାସ୍ତବ ଡେଟା ଉପରେ ଆଧାରିତ AI ବ୍ୟାଖ୍ୟା",
     aiDisclaimer:
       "ଉପଲବ୍ଧ ବଜାର ଡେଟା ଉପରେ ଆଧାରିତ AI-ଜନିତ ବ୍ୟାଖ୍ୟା। ବିକ୍ରୟ କରିବା ପୂର୍ବରୁ ଆପଣଙ୍କ ସ୍ଥାନୀୟ ମଣ୍ଡିରୁ ସର୍ବଶେଷ ମୂଲ୍ୟ ଯାଞ୍ଚ କରନ୍ତୁ।",
-    noInsight: "AI ବଜାର ବ୍ୟାଖ୍ୟା ବର୍ତ୍ତମାନ ଉପଲବ୍ଧ ନାହିଁ।",
+    noInsight: "ବଜାର ପରାମର୍ଶ ବର୍ତ୍ତମାନ ଉପଲବ୍ଧ ନାହିଁ।",
     retry: "ପୁନ୍ରାୟାସ କରନ୍ତୁ",
     loading: "ବଜାର ଡେଟା ଲୋଡ୍ ହେଉଛି...",
     noCrops:
@@ -183,9 +183,9 @@ const labelsByLanguage = {
     date: "तारीख",
     trend: "प्रवृत्ती",
     compare: "बाजार तुलना",
-    aiInsight: "AI बाजार अंतर्दृष्टी",
+    aiInsight: "बाजार सल्ला",
     aiGenerated: "उपलब्ध बाजार डेटावरून AI द्वारे तयार केलेले",
-    noInsight: "AI बाजार अंतर्दृष्टी उपलब्ध नाही.",
+    noInsight: "बाजार सल्ला उपलब्ध नाही.",
     retry: "पुन्हा प्रयत्न करा",
     loading: "बाजार डेटा लोड होत आहे...",
     noCrops: "तुमच्या प्रोफाइलमध्ये सध्या कोणतीही पिके नाहीत.",

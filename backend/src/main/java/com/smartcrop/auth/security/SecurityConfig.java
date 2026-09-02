@@ -1,6 +1,7 @@
 package com.smartcrop.auth.security;
 
 import java.util.List;
+import java.util.Arrays;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,9 +29,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
         private final JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final String allowedOrigins;
 
-        public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        public SecurityConfig(
+                        JwtAuthenticationFilter jwtAuthenticationFilter,
+                        @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins:http://localhost:5173}") String allowedOrigins) {
                 this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+                this.allowedOrigins = allowedOrigins;
         }
 
         @Bean
@@ -52,8 +57,10 @@ public class SecurityConfig {
 
                 CorsConfiguration configuration = new CorsConfiguration();
 
-                configuration.setAllowedOrigins(
-                                List.of("http://localhost:5173"));
+                configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+                                .map(String::trim)
+                                .filter(origin -> !origin.isBlank())
+                                .toList());
 
                 configuration.setAllowedMethods(
                                 List.of(

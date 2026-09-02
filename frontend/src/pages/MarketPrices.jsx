@@ -697,7 +697,6 @@ const MarketPrices = () => {
               {labels.location}: {marketCoverage}
             </p>
 
-            {/* AI Insight */}
             <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
               <div className="flex items-center justify-between gap-3">
                 <div>
