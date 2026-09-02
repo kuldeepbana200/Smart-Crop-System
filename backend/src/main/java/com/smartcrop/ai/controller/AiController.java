@@ -2,6 +2,9 @@ package com.smartcrop.ai.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smartcrop.ai.service.GroqClient;
+import com.smartcrop.ai.service.GroqRateLimitException;
+import com.smartcrop.ai.service.MarketAdvisoryService;
 import com.smartcrop.ai.dto.AiTestResponse;
 import com.smartcrop.ai.service.YouTubeService;
 import com.smartcrop.auth.entity.User;
@@ -14,15 +17,11 @@ import com.smartcrop.farmer.entity.Farmer;
 import com.smartcrop.farmer.repository.FarmerRepository;
 import com.smartcrop.market.dto.MarketPriceResponse;
 import com.smartcrop.market.service.MarketService;
-import com.smartcrop.risk.service.RiskService;
 import com.smartcrop.weather.dto.CurrentWeatherResponse;
 import com.smartcrop.weather.service.WeatherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -30,13 +29,9 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -44,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @RestController
@@ -51,11 +47,9 @@ import java.util.Optional;
 public class AiController {
 
     private static final Logger log = LoggerFactory.getLogger(AiController.class);
-    private static final String GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-    private static final String GROQ_MODEL = "openai/gpt-oss-20b";
-
-    private final String groqApiKey;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final GroqClient groqClient;
+    private final MarketAdvisoryService marketAdvisoryService;
+    private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
     private final FarmerRepository farmerRepository;
     private final CropRepository cropRepository;
@@ -65,7 +59,9 @@ public class AiController {
     private final YouTubeService youTubeService;
 
     public AiController(
-            @Value("${app.groq.api-key:}") String groqApiKey,
+            GroqClient groqClient,
+            ObjectMapper objectMapper,
+            MarketAdvisoryService marketAdvisoryService,
             UserRepository userRepository,
             FarmerRepository farmerRepository,
             CropRepository cropRepository,
@@ -73,7 +69,9 @@ public class AiController {
             DistressAlertService distressAlertService,
             MarketService marketService,
             YouTubeService youTubeService) {
-        this.groqApiKey = groqApiKey;
+        this.groqClient = groqClient;
+        this.objectMapper = objectMapper;
+        this.marketAdvisoryService = marketAdvisoryService;
         this.userRepository = userRepository;
         this.farmerRepository = farmerRepository;
         this.cropRepository = cropRepository;
@@ -185,6 +183,23 @@ public class AiController {
     public ResponseEntity<?> marketAdvice(Authentication authentication) {
         User user = userRepository.findByEmail(authentication.getName())
                 .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
+        Farmer farmer = farmerRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new IllegalStateException("Farmer profile not found"));
+        String languageName = switch (Optional.ofNullable(user.getPreferredLanguage()).orElse("en")
+                .toLowerCase(Locale.ROOT)) {
+            case "hi" -> "Hindi";
+            case "mr" -> "Marathi";
+            case "or" -> "Odia";
+            default -> "English";
+        };
+        return ResponseEntity.ok(marketAdvisoryService.advise(farmer, languageName));
+    }
+
+    public ResponseEntity<?> legacyMarketAdvice(
+            Authentication authentication,
+            @RequestParam String cropName) {
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow(() -> new UsernameNotFoundException("Authenticated user not found"));
 
         Farmer farmer = farmerRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new IllegalStateException("Farmer profile not found"));
@@ -201,70 +216,92 @@ public class AiController {
                 Optional.ofNullable(farmer.getDistrict()).orElse("Not set"),
                 Optional.ofNullable(farmer.getState()).orElse("Not set"));
 
-        List<Crop> crops = cropRepository.findByFarmerId(farmer.getId());
-        if (crops.isEmpty()) {
+        String requestedCropName = cropName.trim();
+        Crop selectedCrop = cropRepository.findByFarmerId(farmer.getId()).stream()
+                .filter(crop -> crop.getCropName() != null
+                        && crop.getCropName().equalsIgnoreCase(requestedCropName))
+                .findFirst()
+                .orElse(null);
+        if (selectedCrop == null) {
             return ResponseEntity.ok(List.of(new MarketAdviceResponse(
-                    "No crop data",
-                    "Market data is unavailable because no crops are recorded for this farmer.",
+                    requestedCropName,
+                    "No verified market data is currently available for this crop.",
                     "Trend unavailable",
-                    "Add crop details to receive market guidance.",
-                    "Market data is unavailable until crop information is present.")));
+                    "No AI interpretation was generated because verified market facts were unavailable.",
+                    "Verify the crop name and try again.")));
         }
 
         List<MarketAdviceResponse> results = new ArrayList<>();
-        for (Crop crop : crops.stream().limit(5).toList()) {
-            String cropName = crop.getCropName();
-            if (cropName == null || cropName.isBlank()) {
-                continue;
-            }
+        String selectedCropName = selectedCrop.getCropName();
+        List<MarketPriceResponse> livePrices = marketService.getPrices(
+                selectedCropName,
+                farmer.getDistrict(),
+                farmer.getState());
 
-            List<MarketPriceResponse> livePrices = marketService.getPrices(
-                    cropName,
-                    farmer.getDistrict(),
-                    farmer.getState());
+        List<MarketPriceResponse> priceHistory = new ArrayList<>();
+        LocalDate today = LocalDate.now();
+        LocalDate startDate = today.minusDays(30);
+        try {
+            priceHistory = marketService.getPriceHistory(
+                    selectedCropName,
+                    farmer.getState(),
+                    startDate,
+                    today);
+        } catch (Exception ignored) {
+            priceHistory = List.of();
+        }
 
-            List<MarketPriceResponse> priceHistory = new ArrayList<>();
-            LocalDate today = LocalDate.now();
-            LocalDate startDate = today.minusDays(30);
-            try {
-                priceHistory = marketService.getPriceHistory(
-                        cropName,
-                        farmer.getState(),
-                        startDate,
-                        today);
-            } catch (Exception ignored) {
-                priceHistory = List.of();
-            }
+        if (livePrices.isEmpty() && priceHistory.isEmpty()) {
+            log.info("No verified market data for crop {} in {}, {}. Skipping Groq market advice.",
+                    selectedCropName, farmer.getDistrict(), farmer.getState());
+            return ResponseEntity.ok(List.of(new MarketAdviceResponse(
+                    selectedCropName,
+                    "No verified market data is currently available for this crop.",
+                    "Trend unavailable",
+                    "No AI interpretation was generated because verified market facts were unavailable.",
+                    "Check again when verified market observations are available.")));
+        }
 
-            String trendText = calculatePriceTrend(priceHistory);
-            String prompt = buildMarketAdvicePrompt(
-                    user,
-                    farmer,
-                    languageName,
-                    location,
-                    cropName,
-                    livePrices,
-                    priceHistory,
-                    trendText);
+        String trendText = calculatePriceTrend(priceHistory);
+        String prompt = buildMarketAdvicePrompt(
+                user,
+                farmer,
+                languageName,
+                location,
+                selectedCropName,
+                livePrices,
+                priceHistory,
+                trendText);
 
-            String content = askGroq(prompt);
-            if (content == null) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
-                        "error",
-                        "Groq API key is not configured. Set GROQ_API_KEY before calling this endpoint."));
-            }
+        String content;
+        try {
+            content = askGroq(prompt, 500, 0.2);
+        } catch (GroqRateLimitException exception) {
+            log.warn("Groq market advice rate limited.");
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of(
+                    "error",
+                    "AI market insight is temporarily unavailable. Your market prices are still up to date.",
+                    "code", "GROQ_RATE_LIMITED"));
+        }
+        if (content == null) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "error",
+                    "Groq API key is not configured. Set GROQ_API_KEY before calling this endpoint."));
+        }
 
-            List<MarketAdviceResponse> parsedAdvice = parseMarketAdviceResponse(content, cropName);
-            if (parsedAdvice.isEmpty()) {
-                results.add(new MarketAdviceResponse(
-                        cropName,
-                        "Market data is available, but AI insight could not be generated from the current response.",
-                        trendText,
-                        "Compare local market prices before selling and confirm the latest available rates.",
-                        "Market information is limited and should be verified before acting."));
-            } else {
-                results.addAll(parsedAdvice);
-            }
+        List<MarketAdviceResponse> parsedAdvice = parseMarketAdviceResponse(content, selectedCropName);
+        List<MarketAdviceResponse> selectedAdvice = parsedAdvice.stream()
+                .filter(item -> item.crop() != null && item.crop().equalsIgnoreCase(selectedCropName))
+                .toList();
+        if (selectedAdvice.isEmpty()) {
+            results.add(new MarketAdviceResponse(
+                    selectedCropName,
+                    "Market data is available, but AI insight could not be generated from the current response.",
+                    trendText,
+                    "Compare local market prices before selling and confirm the latest available rates.",
+                    "Market information is limited and should be verified before acting."));
+        } else {
+            results.addAll(selectedAdvice);
         }
 
         return ResponseEntity.ok(results);
@@ -355,7 +392,6 @@ public class AiController {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private String buildMarketAdvicePrompt(
             User user,
             Farmer farmer,
@@ -372,15 +408,34 @@ public class AiController {
                 .append(" and keep the answer short, clear, and farmer-friendly. ");
         prompt.append(
                 "Critical rules: never invent prices, market names, future prices, guaranteed profits, waiting periods, or market movements. Use only the real values provided below. If a required market or price input is missing, explicitly say it is unavailable. ");
-        prompt.append("Farmer name: ").append(user.getName()).append(". ");
         prompt.append("Selected language: ").append(languageName).append(". ");
         prompt.append("Location: ").append(location).append(". ");
         prompt.append("Crop: ").append(cropName).append(". ");
+        String dataScope = livePrices.stream().anyMatch(price -> same(price.getDistrict(), farmer.getDistrict()))
+                ? "exact district and state"
+                : livePrices.stream().anyMatch(price -> same(price.getState(), farmer.getState()))
+                        ? "available state markets"
+                        : "available markets";
+        prompt.append("Verified data scope: ").append(dataScope).append(". ");
+        Double bestPrice = livePrices.stream()
+                .map((MarketPriceResponse price) -> price.getModalPrice())
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
+                .orElse(null);
+        Double lowestPrice = livePrices.stream()
+                .map((MarketPriceResponse price) -> price.getModalPrice())
+                .filter(Objects::nonNull)
+                .min(Comparator.naturalOrder())
+                .orElse(null);
+        prompt.append("Best verified modal price: ").append(bestPrice == null ? "Not available" : bestPrice)
+                .append(". ");
+        prompt.append("Lowest verified modal price: ").append(lowestPrice == null ? "Not available" : lowestPrice)
+                .append(". ");
         prompt.append("Current market prices: ");
         if (livePrices == null || livePrices.isEmpty()) {
             prompt.append("Current market prices unavailable. ");
         } else {
-            for (MarketPriceResponse price : livePrices.stream().limit(5).toList()) {
+            for (MarketPriceResponse price : livePrices.stream().limit(3).toList()) {
                 prompt.append(String.format(Locale.US,
                         "Market %s in %s, %s: modal %s %s, min %s %s, max %s %s, date %s; ",
                         price.getMarket(),
@@ -404,7 +459,10 @@ public class AiController {
                     "%s; ",
                     trendText));
             for (MarketPriceResponse price : priceHistory.stream()
-                    .sorted(Comparator.comparing(MarketPriceResponse::getArrivalDate)).limit(5).toList()) {
+                    .sorted(Comparator.comparing(
+                            (MarketPriceResponse price) -> price.getArrivalDate(),
+                            Comparator.nullsLast(Comparator.naturalOrder())))
+                    .limit(3).toList()) {
                 prompt.append(String.format(Locale.US,
                         "%s:%s, ",
                         price.getArrivalDate() == null ? "date unavailable" : price.getArrivalDate(),
@@ -415,6 +473,10 @@ public class AiController {
         prompt.append(
                 "Return ONLY valid JSON in this exact shape: {\"marketAdvice\":[{\"crop\":\"string\",\"summary\":\"string\",\"trend\":\"string\",\"advice\":\"string\",\"caution\":\"string\"}]}. Do not output markdown fences or extra text. The summary should explain the current real market situation in this farmer's region. The trend must be based only on the actual price history provided above. The advice should suggest a practical action using available data only. The caution should say that price data is unavailable or that current market values should be verified before selling if the backend data is limited. ");
         return prompt.toString();
+    }
+
+    private boolean same(String first, String second) {
+        return first != null && second != null && first.trim().equalsIgnoreCase(second.trim());
     }
 
     private List<MarketAdviceResponse> parseMarketAdviceResponse(String content, String fallbackCrop) {
@@ -470,7 +532,9 @@ public class AiController {
 
         List<MarketPriceResponse> validEntries = priceHistory.stream()
                 .filter(price -> price != null && price.getModalPrice() != null && price.getArrivalDate() != null)
-                .sorted(Comparator.comparing(MarketPriceResponse::getArrivalDate))
+                .sorted(Comparator.comparing(
+                        (MarketPriceResponse price) -> price.getArrivalDate(),
+                        Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
 
         if (validEntries.size() < 2) {
@@ -690,49 +754,21 @@ public class AiController {
     }
 
     private String askGroq(String prompt) {
-        if (groqApiKey == null || groqApiKey.isBlank()) {
-            return null;
-        }
+        return askGroq(prompt, 2048, 0.2);
+    }
 
+    private String askGroq(String prompt, int maxCompletionTokens, double temperature) {
         try {
-            String requestBody = objectMapper.writeValueAsString(Map.of(
-                    "model", GROQ_MODEL,
-                    "messages", List.of(
-                            Map.of(
-                                    "role", "system",
-                                    "content", "You are a helpful Indian agricultural education assistant."),
-                            Map.of(
-                                    "role", "user",
-                                    "content", prompt)),
-                    "max_completion_tokens", 2048,
-                    "temperature", 0.2,
-                    "reasoning_effort", "low",
-                    "include_reasoning", false,
-                    "response_format", Map.of(
-                            "type", "json_object")));
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(GROQ_API_URL))
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + groqApiKey)
-                    .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
-                    .build();
-
-            HttpResponse<String> response = HttpClient.newHttpClient()
-                    .send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-
-            if (response.statusCode() >= 400) {
-                throw new IllegalStateException(
-                        "Groq API request failed with status " + response.statusCode() + ": " + response.body());
-            }
-
-            JsonNode body = objectMapper.readTree(response.body());
-            String rawResponse = body.path("choices").path(0).path("message").path("content")
-                    .asText("No response text generated.");
-            log.info("Raw Groq response: {}", rawResponse);
-            return rawResponse;
+            return groqClient.complete(
+                    "You are a helpful Indian agricultural education assistant.",
+                    prompt,
+                    maxCompletionTokens,
+                    temperature);
+        } catch (GroqRateLimitException exception) {
+            log.warn("Groq request rate limited.");
+            throw exception;
         } catch (Exception ex) {
-            throw new IllegalStateException("AI generation failed: " + ex.getMessage(), ex);
+            throw new IllegalStateException("AI generation failed", ex);
         }
     }
 

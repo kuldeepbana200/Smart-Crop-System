@@ -12,15 +12,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class AdvisoryFactValidatorLifecycleTest {
 
     @Test
-    void prePlantingHeavyRainRejectsEstablishedCropCare() {
+    void prePlantingPreparationAndIrrigationPlanningAreAllowed() {
         AdvisoryFactValidator validator = new AdvisoryFactValidator(null, null, null, null,
                 CropLifecycle.NOT_YET_PLANTED);
         List<AdvisoryRecommendation> recommendations = List.of(
                 recommendation("Prepare drainage before planting."),
                 recommendation("Water the seedlings every morning."));
 
-        assertThrows(AdvisoryFactValidator.AdvisoryValidationException.class,
-                () -> validator.validate(recommendations));
+        assertDoesNotThrow(() -> validator.validate(recommendations));
     }
 
     @Test
@@ -34,6 +33,29 @@ class AdvisoryFactValidatorLifecycleTest {
         assertThrows(AdvisoryFactValidator.AdvisoryValidationException.class,
                 () -> validator.validate(List.of(
                         recommendation("Treat the tomato disease on the crop."))));
+    }
+
+    @Test
+    void prePlantingAcceptsNaturalPreparationWording() {
+        AdvisoryFactValidator validator = new AdvisoryFactValidator(null, null, null, null,
+                CropLifecycle.NOT_YET_PLANTED);
+
+        assertDoesNotThrow(() -> validator.validate(List.of(
+                recommendation("Make sure the soil drains well before you plant the tomatoes."),
+                recommendation("Plan irrigation for the planting period and prepare healthy seedlings."))));
+    }
+
+    @Test
+    void prePlantingRejectsHarvestAndFloweringClaims() {
+        AdvisoryFactValidator validator = new AdvisoryFactValidator(null, null, null, null,
+                CropLifecycle.NOT_YET_PLANTED);
+
+        assertThrows(AdvisoryFactValidator.AdvisoryValidationException.class,
+                () -> validator.validate(List.of(recommendation("Harvest the tomatoes now."))));
+        assertThrows(AdvisoryFactValidator.AdvisoryValidationException.class,
+                () -> validator.validate(List.of(recommendation("Monitor flowering and fruit development."))));
+        assertThrows(AdvisoryFactValidator.AdvisoryValidationException.class,
+                () -> validator.validate(List.of(recommendation("Pick ripe tomatoes."))));
     }
 
     @Test
@@ -57,15 +79,14 @@ class AdvisoryFactValidatorLifecycleTest {
     }
 
     @Test
-    void repetitiveDrainageActionsAreRejected() {
+    void repetitiveDrainageActionsAreAllowedByTheFactValidator() {
         AdvisoryFactValidator validator = new AdvisoryFactValidator(null, null, null, null,
                 CropLifecycle.NOT_YET_PLANTED);
         List<AdvisoryRecommendation> recommendations = List.of(
                 recommendation("Check drainage around the field."),
                 recommendation("Clear drainage channels before planting."));
 
-        assertThrows(AdvisoryFactValidator.AdvisoryValidationException.class,
-                () -> validator.validate(recommendations));
+        assertDoesNotThrow(() -> validator.validate(recommendations));
     }
 
     private AdvisoryRecommendation recommendation(String text) {

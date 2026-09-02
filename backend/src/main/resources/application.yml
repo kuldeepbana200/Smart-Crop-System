@@ -39,6 +39,7 @@ app:
 
   groq:
     api-key: ${GROQ_API_KEY:}
+    model: ${GROQ_MODEL:openai/gpt-oss-20b}
 
   youtube:
     api-key: ${YOUTUBE_API_KEY:}

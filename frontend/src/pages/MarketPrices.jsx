@@ -5,7 +5,7 @@ import {
   marketService,
   marketAdviceService,
 } from "../services/api.js";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const currencyFormatter = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -37,11 +37,11 @@ const labelsByLanguage = {
     unit: "Unit",
     date: "Date",
     priceTrend: "Price Trend",
-    aiInsight: "AI Market Interpretation",
-    aiDisclaimerShort: "Based on real market data",
+    aiInsight: "Market Advice",
+    aiDisclaimerShort: "",
     aiDisclaimer:
-      "AI-generated interpretation based on available market data. Verify the latest price with your local mandi before selling.",
-    noInsight: "AI market interpretation is not available right now.",
+      "Verify the latest price with your local mandi before selling.",
+    noInsight: "Market advice is not available right now.",
     retry: "Try again",
     loading: "Loading market data...",
     noCrops:
@@ -65,6 +65,9 @@ const labelsByLanguage = {
     lowestAvailable: "Lowest price",
     yourDistrict: "Your district",
     selectACrop: "Select a crop to see market data for your area.",
+    coverageDistrict: "Your district data",
+    coverageState: "Showing available state market data",
+    coverageAll: "Showing available market data",
   },
   hi: {
     marketDashboard: "बाजार डैशबोर्ड",
@@ -88,11 +91,11 @@ const labelsByLanguage = {
     unit: "इकाई",
     date: "तारीख",
     priceTrend: "कीमत का रुझान",
-    aiInsight: "AI बाजार व्याख्या",
+    aiInsight: "बाजार सलाह",
     aiDisclaimerShort: "वास्तविक बाजार डेटा के आधार पर",
     aiDisclaimer:
-      "उपलब्ध बाजार डेटा के आधार पर AI-जनित व्याख्या। बेचने से पहले अपने स्थानीय मंडी से नवीनतम कीमत सत्यापित करें।",
-    noInsight: "AI बाजार व्याख्या अभी उपलब्ध नहीं है।",
+      "बेचने से पहले अपने स्थानीय मंडी से नवीनतम कीमत सत्यापित करें।",
+    noInsight: "बाजार सलाह अभी उपलब्ध नहीं है।",
     retry: "फिर से प्रयास करें",
     loading: "बाजार डेटा लोड हो रहा है...",
     noCrops:
@@ -116,6 +119,9 @@ const labelsByLanguage = {
     lowestAvailable: "न्यूनतम कीमत",
     yourDistrict: "आपका जिला",
     selectACrop: "आपके क्षेत्र के लिए बाजार डेटा देखने के लिए एक फसल चुनें।",
+    coverageDistrict: "आपके जिले का डेटा",
+    coverageState: "उपलब्ध राज्य बाजार डेटा दिखाया जा रहा है",
+    coverageAll: "उपलब्ध बाजार डेटा दिखाया जा रहा है",
   },
   or: {
     marketDashboard: "ବଜାର ଡ୍ୟାଶବୋର୍ଡ",
@@ -139,11 +145,11 @@ const labelsByLanguage = {
     unit: "ଏକକ",
     date: "ତାରିଖ",
     priceTrend: "ମୂଲ୍ୟ ପ୍ରବୃତ୍ତି",
-    aiInsight: "AI ବଜାର ବ୍ୟାଖ୍ୟା",
+    aiInsight: "ବଜାର ପରାମର୍ଶ",
     aiDisclaimerShort: "ବାସ୍ତବ ବଜାର ଡେଟା ଉପରେ ଆଧାରିତ",
     aiDisclaimer:
-      "ଉପଲବ୍ଧ ବଜାର ଡେଟା ଉପରେ ଆଧାରିତ AI-ଜନିତ ବ୍ୟାଖ୍ୟା। ବିକ୍ରୟ କରିବା ପୂର୍ବରୁ ଆପଣଙ୍କ ସ୍ଥାନୀୟ ମଣ୍ଡିରୁ ସର୍ବଶେଷ ମୂଲ୍ୟ ଯାଞ୍ଚ କରନ୍ତୁ।",
-    noInsight: "AI ବଜାର ବ୍ୟାଖ୍ୟା ବର୍ତ୍ତମାନ ଉପଲବ୍ଧ ନାହିଁ।",
+      "ବିକ୍ରୟ କରିବା ପୂର୍ବରୁ ଆପଣଙ୍କ ସ୍ଥାନୀୟ ମଣ୍ଡିରୁ ସର୍ବଶେଷ ମୂଲ୍ୟ ଯାଞ୍ଚ କରନ୍ତୁ।",
+    noInsight: "ବଜାର ପରାମର୍ଶ ବର୍ତ୍ତମାନ ଉପଲବ୍ଧ ନାହିଁ।",
     retry: "ପୁନ୍ରାୟାସ କରନ୍ତୁ",
     loading: "ବଜାର ଡେଟା ଲୋଡ୍ ହେଉଛି...",
     noCrops:
@@ -167,6 +173,9 @@ const labelsByLanguage = {
     lowestAvailable: "ସବୁଠାରୁ କମ୍ ମୂଲ୍ୟ",
     yourDistrict: "ଆପଣଙ୍କ ଜିଲ୍ଲା",
     selectACrop: "ଆପଣଙ୍କ ଏଲାକାର ବଜାର ଡେଟା ଦେଖିବା ପାଇଁ ଏକ ଫସଲ ବାଛନ୍ତୁ।",
+    coverageDistrict: "ଆପଣଙ୍କ ଜିଲ୍ଲାର ତଥ୍ୟ",
+    coverageState: "ଉପଲବ୍ଧ ରାଜ୍ୟ ବଜାର ତଥ୍ୟ ଦେଖାଯାଉଛି",
+    coverageAll: "ଉପଲବ୍ଧ ବଜାର ତଥ୍ୟ ଦେଖାଯାଉଛି",
   },
   mr: {
     marketDashboard: "बाजार डॅशबोर्ड",
@@ -190,11 +199,11 @@ const labelsByLanguage = {
     unit: "एकक",
     date: "तारीख",
     priceTrend: "भाव प्रवृत्ती",
-    aiInsight: "AI बाजार व्याख्या",
+    aiInsight: "बाजार सल्ला",
     aiDisclaimerShort: "वास्तविक बाजार डेटावर आधारित",
     aiDisclaimer:
-      "उपलब्ध बाजार डेटावर आधारित AI-जनित व्याख्या। विकण्यापूर्वी आपल्या स्थानिक मंडीमध्ये नवीनतम भाव सत्यापित करा।",
-    noInsight: "AI बाजार व्याख्या आता उपलब्ध नाही।",
+      "विकण्यापूर्वी आपल्या स्थानिक मंडीमध्ये नवीनतम भाव सत्यापित करा।",
+    noInsight: "बाजार सल्ला सध्या उपलब्ध नाही।",
     retry: "पुन्हा प्रयत्न करा",
     loading: "बाजार डेटा लोड होत आहे...",
     noCrops:
@@ -218,6 +227,9 @@ const labelsByLanguage = {
     lowestAvailable: "न्यूनतम भाव",
     yourDistrict: "आपला जिल्हा",
     selectACrop: "आपल्या क्षेत्रातील बाजार डेटा पाहण्यासाठी एक पीक निवडा।",
+    coverageDistrict: "आपल्या जिल्ह्यातील माहिती",
+    coverageState: "उपलब्ध राज्य बाजार माहिती दाखवत आहे",
+    coverageAll: "उपलब्ध बाजार माहिती दाखवत आहे",
   },
 };
 
@@ -258,6 +270,8 @@ const MarketPrices = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
+  const [insightError, setInsightError] = useState("");
+  const insightsRequestedRef = useRef(false);
 
   // Load farmer profile and crops
   useEffect(() => {
@@ -290,12 +304,13 @@ const MarketPrices = () => {
             profile?.state || "",
             profile?.district || "",
           );
+          if (!insightsRequestedRef.current) {
+            insightsRequestedRef.current = true;
+            await loadMarketInsights();
+          }
         } else {
           setLoading(false);
         }
-
-        // Load market insights
-        await loadMarketInsights();
       } catch (err) {
         setError("Unable to load market context.");
         setLoading(false);
@@ -361,25 +376,32 @@ const MarketPrices = () => {
 
   const loadMarketInsights = async () => {
     setInsightLoading(true);
+    setInsightError("");
 
     try {
       const { data } = await marketAdviceService.getMarketAdvice();
       setMarketAdvice(Array.isArray(data) ? data : []);
-    } catch {
+    } catch (err) {
       setMarketAdvice([]);
+      setInsightError(
+        err.response?.status === 429
+          ? "AI market insight is temporarily unavailable. Your market prices are still up to date."
+          : "AI market insight is unavailable right now. Your market prices are still up to date.",
+      );
     } finally {
       setInsightLoading(false);
     }
   };
 
-  const handleCropSelect = (cropName) => {
+  const handleCropSelect = async (cropName) => {
+    setInsightError("");
     setSelectedCrop(cropName);
     setFilters({
       cropName,
       state: farmerProfile?.state || "",
       district: farmerProfile?.district || "",
     });
-    loadPricesForCrop(
+    await loadPricesForCrop(
       cropName,
       farmerProfile?.state || "",
       farmerProfile?.district || "",
@@ -394,6 +416,7 @@ const MarketPrices = () => {
       district: filters.district?.trim() || "",
     };
     if (nextFilters.cropName) {
+      setInsightError("");
       setSelectedCrop(nextFilters.cropName);
       await loadPricesForCrop(
         nextFilters.cropName,
@@ -423,14 +446,33 @@ const MarketPrices = () => {
     // Find area price (district/state match)
     const areaPriceEntry = prices.find(
       (p) =>
-        (p.district === farmerProfile?.district ||
-          p.state === farmerProfile?.state) &&
+        p.district?.toLowerCase() === farmerProfile?.district?.toLowerCase() &&
         isValidMarketPrice(p.modalPrice),
     );
     const areaPrice = areaPriceEntry ? Number(areaPriceEntry.modalPrice) : null;
 
     return { best, lowest, areaPrice };
   }, [prices, farmerProfile]);
+
+  const marketCoverage = useMemo(() => {
+    const district = farmerProfile?.district?.trim().toLowerCase();
+    const state = farmerProfile?.state?.trim().toLowerCase();
+    const hasDistrict = Boolean(
+      district &&
+      prices.some((price) => price.district?.trim().toLowerCase() === district),
+    );
+    const hasState = Boolean(
+      state &&
+      prices.some((price) => price.state?.trim().toLowerCase() === state),
+    );
+    return hasDistrict
+      ? labels.coverageDistrict
+      : hasState
+        ? labels.coverageState
+        : prices.length
+          ? labels.coverageAll
+          : labels.notAvailable;
+  }, [prices, farmerProfile, labels]);
 
   if (loading && !myCrops.length) {
     return (
@@ -651,6 +693,9 @@ const MarketPrices = () => {
                 )}
               </div>
             </section>
+            <p className="mt-3 text-sm text-slate-500">
+              {labels.location}: {marketCoverage}
+            </p>
 
             {/* AI Insight */}
             <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
@@ -668,9 +713,22 @@ const MarketPrices = () => {
                     {labels.loadingInsight}
                   </span>
                 )}
+                {!insightLoading && (
+                  <button
+                    type="button"
+                    onClick={loadMarketInsights}
+                    className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                  >
+                    {marketAdvice.length ? labels.retry : "Get market advice"}
+                  </button>
+                )}
               </div>
 
-              {marketAdvice.length ? (
+              {insightError ? (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  {insightError}
+                </div>
+              ) : marketAdvice.length ? (
                 <div className="mt-4 space-y-4">
                   {marketAdvice.map((item, idx) => (
                     <article
@@ -683,6 +741,11 @@ const MarketPrices = () => {
                       <p className="mt-2 text-sm text-slate-700">
                         {item.summary}
                       </p>
+                      {item.advice && (
+                        <p className="mt-2 text-sm text-slate-700">
+                          {item.advice}
+                        </p>
+                      )}
                       {item.trend && (
                         <p className="mt-2 text-sm text-slate-600">
                           <span className="font-medium">
@@ -692,7 +755,9 @@ const MarketPrices = () => {
                         </p>
                       )}
                       <p className="mt-2 text-xs text-amber-600">
-                        {labels.aiDisclaimer}
+                        {item.fallback
+                          ? "General guidance - verify today's local mandi rate."
+                          : labels.aiDisclaimer}
                       </p>
                     </article>
                   ))}

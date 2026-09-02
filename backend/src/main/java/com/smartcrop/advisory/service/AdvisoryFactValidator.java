@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.HashSet;
 
 /**
  * Validates advisory recommendations to ensure they are strictly grounded in
@@ -78,7 +77,6 @@ public class AdvisoryFactValidator {
         }
 
         validateLifecycleRecommendations(recommendations);
-        validateDistinctActions(recommendations);
 
         // Validate severity alignment with backend risk
         validateSeverityAlignment(recommendations);
@@ -92,67 +90,20 @@ public class AdvisoryFactValidator {
             return;
         }
 
-        String text = recommendations.stream()
-                .map(rec -> rec.recommendation() + " " + rec.reason())
-                .reduce("", (left, right) -> left + " " + right)
-                .toLowerCase(Locale.ROOT);
-
-        String[] establishedCropCare = { "water the seedlings", "water seedlings", "irrigate the crop",
-                "irrigation now", "existing seedlings", "treat crop stress" };
-        for (String phrase : establishedCropCare) {
-            if (text.contains(phrase)) {
-                throw new AdvisoryValidationException(
-                        "Pre-planting advisory contains established-crop care: " + phrase);
-            }
-        }
-
-        boolean preparationContext = text.contains("prepare") || text.contains("before planting")
-                || text.contains("planting material");
-        if ((text.matches(".*\\b(irrigat|water|watering)\\w*\\b.*")
-                && text.matches(".*\\b(crop|tomato|seedling|plant|roots?|leaves?)\\w*\\b.*")
-                && !preparationContext)
-                || (text.matches(".*\\b(monitor|protect|check|inspect|treat|care for|water)\\w*\\b.*")
-                        && text.matches(".*\\bseedlings?\\b.*") && !preparationContext)
-                || (text.matches(".*\\b(treat|control|manage|spray)\\w*\\b.*")
-                        && text.matches(".*\\b(disease|pest|fung|blight|mildew)\\w*\\b.*")
-                        && !preparationContext)
-                || (text.matches(".*\\b(inspect|protect|manage|monitor)\\w*\\b.*")
-                        && text.matches(".*\\b(leaves?|flowers?|fruits?)\\b.*"))
-                || text.matches(".*\\b(harvest|harvesting)\\w*\\b.*")) {
-            throw new AdvisoryValidationException(
-                    "Pre-planting advisory assumes an established crop rather than preparation.");
-        }
-    }
-
-    private void validateDistinctActions(List<AdvisoryRecommendation> recommendations) {
-        Set<String> actionFamilies = new HashSet<>();
         for (AdvisoryRecommendation recommendation : recommendations) {
-            String family = actionFamily(recommendation);
-            if (family != null && !actionFamilies.add(family)) {
+            String text = (recommendation.title() + " " + recommendation.recommendation() + " "
+                    + recommendation.reason()).toLowerCase(Locale.ROOT);
+            boolean harvestClaim = text.matches(".*\\b(harvest|harvesting|pick|picking)\\b.*");
+            boolean floweringOrFruitClaim = text.matches(".*\\b(monitor|manage|protect|during|support)\\w*\\b.*")
+                    && text.matches(".*\\b(flowering|flowers?|fruit development|fruits?)\\b.*");
+            boolean existingCropTreatment = text.matches(".*\\b(treat|apply|spray|control)\\w*\\b.*")
+                    && text.matches(".*\\b(existing|established|crop|plant|plants)\\w*\\b.*")
+                    && text.matches(".*\\b(disease|pest|blight|mildew|fungal)\\w*\\b.*");
+            if (harvestClaim || floweringOrFruitClaim || existingCropTreatment) {
                 throw new AdvisoryValidationException(
-                        "Recommendations repeat the same action family: " + family);
+                        "Pre-planting advisory assumes an established crop rather than preparation.");
             }
         }
-    }
-
-    private String actionFamily(AdvisoryRecommendation recommendation) {
-        String text = (recommendation.title() + " " + recommendation.recommendation()).toLowerCase(Locale.ROOT);
-        if (text.matches(".*\\b(check|clear|inspect|prepare|improve|maintain)\\w*\\b.*\\bdrain(age|s)?\\b.*")) {
-            return "DRAINAGE";
-        }
-        if (text.matches(".*\\b(irrigat|water|watering)\\w*\\b.*")) {
-            return "IRRIGATION";
-        }
-        if (text.matches(".*\\b(plant|planting|sow|seed|seedling)\\w*\\b.*")) {
-            return "PLANTING";
-        }
-        if (text.matches(".*\\b(soil|field)\\w*\\b.*")) {
-            return "SOIL_FIELD";
-        }
-        if (text.matches(".*\\b(harvest|harvesting)\\w*\\b.*")) {
-            return "HARVEST";
-        }
-        return null;
     }
 
     /**

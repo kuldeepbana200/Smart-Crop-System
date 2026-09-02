@@ -2,6 +2,7 @@ package com.smartcrop.advisory.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smartcrop.ai.service.GroqClient;
 import com.smartcrop.advisory.dto.AdvisoryRecommendation;
 import com.smartcrop.crop.entity.Crop;
 import com.smartcrop.crop.service.CropLifecycle;
@@ -31,16 +32,13 @@ import java.util.Map;
 public class GroqAdvisoryService {
 
         private static final Logger log = LoggerFactory.getLogger(GroqAdvisoryService.class);
-        private static final String GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-        private static final String GROQ_MODEL = "openai/gpt-oss-20b";
-
-        private final String groqApiKey;
+        private final GroqClient groqClient;
         private final ObjectMapper objectMapper;
 
         public GroqAdvisoryService(
-                        @Value("${app.groq.api-key:}") String groqApiKey,
+                        GroqClient groqClient,
                         ObjectMapper objectMapper) {
-                this.groqApiKey = groqApiKey;
+                this.groqClient = groqClient;
                 this.objectMapper = objectMapper;
         }
 
@@ -68,52 +66,65 @@ public class GroqAdvisoryService {
                         return List.of();
                 }
 
-                if (groqApiKey == null || groqApiKey.isBlank()) {
-                        log.warn("Groq advisory generation skipped because GROQ_API_KEY is not configured.");
-                        return List.of();
-                }
-
                 String prompt = buildPrompt(farmer, crop, weather, riskResult, languageCode, lifecycle);
                 log.info("Advisory facts before Groq. Today: {}, Crop: {}, Stage: {}, Planting date: {}, Harvest date: {}, Lifecycle: {}",
                                 java.time.LocalDate.now(), crop.getCropName(), crop.getCropStage(),
                                 crop.getSowingDate(), crop.getExpectedHarvestDate(), lifecycle);
-                String response = callGroq(prompt);
-                if (response == null || response.isBlank()) {
-                        return List.of();
-                }
-
-                List<AdvisoryRecommendation> parsed = parseRecommendations(response);
-                if (parsed.isEmpty()) {
-                        return List.of();
-                }
-
-                log.info("Groq recommendations parsed. Crop: {}, Lifecycle: {}, Planting date: {}, Count: {}",
-                                crop.getCropName(), lifecycle, crop.getSowingDate(), parsed.size());
-                parsed.forEach(recommendation -> log.info(
-                                "Groq recommendation: Category: {}, Severity: {}, Title: {}",
-                                recommendation.category(), recommendation.severity(), recommendation.title()));
-
-                // FACT-LOCK: Validate recommendations against backend facts
                 AdvisoryFactValidator validator = new AdvisoryFactValidator(farmer, crop, weather, riskResult,
                                 lifecycle);
-                try {
-                        List<AdvisoryRecommendation> validated = validator.validate(parsed);
+                String retryCorrection = "";
+                for (int attempt = 0; attempt < 2; attempt++) {
+                        List<AdvisoryRecommendation> parsed = List.of();
+                        try {
+                                String response = callGroq(prompt + retryCorrection);
+                                if (response == null || response.isBlank()) {
+                                        throw new GroqAdvisoryGenerationException(
+                                                        "Groq returned an empty advisory response.");
+                                }
 
-                        log.info("Groq advisory generated and validated successfully. " +
-                                        "Farmer: {} ({}), Crop: {}, Stage: {}, Risk: {}/{}",
-                                        farmer.getId(),
-                                        farmer.getDistrict() != null ? farmer.getDistrict() : "unknown",
-                                        crop.getCropName(),
-                                        crop.getCropStage() != null ? crop.getCropStage() : "not set",
-                                        riskResult != null ? riskResult.score() : "N/A",
-                                        riskResult != null ? riskResult.riskLevel() : "N/A");
+                                parsed = parseRecommendations(response);
+                                if (parsed.isEmpty()) {
+                                        throw new GroqAdvisoryGenerationException(
+                                                        "Groq returned no advisory recommendations.");
+                                }
 
-                        return validated;
-                } catch (AdvisoryFactValidator.AdvisoryValidationException ex) {
-                        log.error("Advisory validation failed - Groq output not fact-grounded: {}", ex.getMessage());
-                        throw new GroqAdvisoryGenerationException(
-                                        "Generated advisory failed fact validation: " + ex.getMessage());
+                                log.info("Groq recommendations parsed. Crop: {}, Lifecycle: {}, Planting date: {}, Count: {}",
+                                                crop.getCropName(), lifecycle, crop.getSowingDate(), parsed.size());
+                                parsed.forEach(recommendation -> log.info(
+                                                "Groq recommendation: Category: {}, Severity: {}, Title: {}",
+                                                recommendation.category(), recommendation.severity(),
+                                                recommendation.title()));
+
+                                List<AdvisoryRecommendation> validated = validator.validate(parsed);
+                                log.info("Groq advisory generated and validated successfully. Farmer: {}, Crop: {}, Lifecycle: {}, Risk: {}/{}",
+                                                farmer.getId(), crop.getCropName(), lifecycle,
+                                                riskResult != null ? riskResult.score() : "N/A",
+                                                riskResult != null ? riskResult.riskLevel() : "N/A");
+                                return validated;
+                        } catch (AdvisoryFactValidator.AdvisoryValidationException ex) {
+                                log.warn("Groq validation failure. Crop: {}, Lifecycle: {}, Planting date: {}, Current date: {}, Rule: {}",
+                                                crop.getCropName(), lifecycle, crop.getSowingDate(),
+                                                java.time.LocalDate.now(), ex.getMessage());
+                                parsed.forEach(recommendation -> log.warn(
+                                                "Rejected Groq recommendation. Category: {}, Title: {}, Text: {}, Reason: {}",
+                                                recommendation.category(), recommendation.title(),
+                                                recommendation.recommendation(), recommendation.reason()));
+                                log.warn("Advisory validation failed on Groq attempt {}: {}", attempt + 1,
+                                                ex.getMessage());
+                                if (attempt == 1) {
+                                        throw new GroqAdvisoryGenerationException(
+                                                        "Generated advisory failed fact validation after retry: "
+                                                                        + ex.getMessage());
+                                }
+                                retryCorrection = "\n\nCORRECTION: Your previous response failed factual validation because: "
+                                                + ex.getMessage()
+                                                + ". Regenerate using the same backend facts. Keep only distinct, realistic actions for the lifecycle; do not change any facts.";
+                        } catch (GroqAdvisoryGenerationException ex) {
+                                throw ex;
+                        }
                 }
+
+                throw new GroqAdvisoryGenerationException("Unable to generate a validated advisory.");
         }
 
         private String buildPrompt(
@@ -209,11 +220,12 @@ public class GroqAdvisoryService {
                                 + "2. Do NOT claim any disease exists unless the backend risk factors explicitly mention it.\n"
                                 + "3. Do NOT recommend pesticides, fertilizers, or chemicals with specific dosages unless that information comes from the backend.\n"
                                 + "   If the backend provides no treatment information, say: 'Specific treatment information is not available. If you notice a serious problem, contact a local agriculture officer.'\n"
-                                + "4. Do NOT invent future dates or planting/harvest dates. Use only the crop stage provided.\n"
+                                + "4. Do NOT invent future dates or planting/harvest dates. Use only the planting date, expected harvest date, crop stage, and lifecycle supplied by the backend.\n"
                                 + "5. The backend RiskEngine is the authority for risk. Your recommendations must align with it and never contradict it.\n"
                                 + "   - If backend risk is LOW, use INFO or ADVISORY severity.\n"
                                 + "   - If backend risk is MODERATE, use ADVISORY or WARNING severity.\n"
                                 + "   - If backend risk is HIGH or CRITICAL, you may use WARNING or URGENT, but not higher than the backend risk.\n"
+                                + "6. When lifecycle is NOT_YET_PLANTED, do not recommend irrigating or stopping irrigation for the crop, monitoring or protecting seedlings, treating an existing crop disease or pest, inspecting leaves, managing flowering, protecting fruit, harvesting, or applying nutrients to an existing crop.\n"
                                 + "\n\n"
                                 + "GENERATE PRACTICAL RECOMMENDATIONS:\n"
                                 + "- Each recommendation should be a clear action the farmer can take today or this week.\n"
@@ -263,120 +275,12 @@ public class GroqAdvisoryService {
         }
 
         private String callGroq(String prompt) {
-
-                if (groqApiKey == null || groqApiKey.isBlank()) {
-                        throw new IllegalStateException(
-                                        "GROQ_API_KEY is not configured");
-                }
-
-                try {
-                        log.debug("Calling Groq API for advisory generation");
-
-                        String requestBody = objectMapper.writeValueAsString(
-                                        Map.of(
-                                                        "model", GROQ_MODEL,
-
-                                                        "messages", List.of(
-                                                                        Map.of(
-                                                                                        "role",
-                                                                                        "system",
-                                                                                        "content",
-                                                                                        "You are an agricultural advisory AI. "
-                                                                                                        + "Return ONLY valid JSON. "
-                                                                                                        + "Never invent facts."),
-
-                                                                        Map.of(
-                                                                                        "role",
-                                                                                        "user",
-                                                                                        "content",
-                                                                                        prompt)),
-
-                                                        "max_completion_tokens",
-                                                        1500,
-
-                                                        "temperature",
-                                                        0.7,
-
-                                                        "response_format",
-                                                        Map.of("type", "json_object")));
-
-                        HttpRequest request = HttpRequest.newBuilder()
-                                        .uri(URI.create(GROQ_API_URL))
-                                        .header(
-                                                        HttpHeaders.AUTHORIZATION,
-                                                        "Bearer " + groqApiKey)
-                                        .header(
-                                                        HttpHeaders.CONTENT_TYPE,
-                                                        MediaType.APPLICATION_JSON_VALUE)
-                                        .POST(
-                                                        HttpRequest.BodyPublishers.ofString(
-                                                                        requestBody,
-                                                                        StandardCharsets.UTF_8))
-                                        .build();
-
-                        log.debug("Groq API request prepared (prompt size: {} chars)", prompt.length());
-
-                        HttpResponse<String> response = HttpClient.newHttpClient()
-                                        .send(
-                                                        request,
-                                                        HttpResponse.BodyHandlers.ofString(
-                                                                        StandardCharsets.UTF_8));
-
-                        if (response.statusCode() >= 400) {
-
-                                log.error(
-                                                "Groq advisory request failed. Status: {}, Body: {}",
-                                                response.statusCode(),
-                                                response.body());
-
-                                throw new IllegalStateException(
-                                                "Groq API request failed with status "
-                                                                + response.statusCode());
-                        }
-
-                        log.debug("Groq API response received with status {}", response.statusCode());
-
-                        JsonNode body = objectMapper.readTree(response.body());
-
-                        String content = body.path("choices")
-                                        .path(0)
-                                        .path("message")
-                                        .path("content")
-                                        .asText(null);
-
-                        if (content == null || content.isBlank()) {
-
-                                log.error(
-                                                "Groq returned an empty advisory response: {}",
-                                                response.body());
-
-                                throw new IllegalStateException(
-                                                "Groq returned an empty response");
-                        }
-
-                        log.debug("Groq advisory content received (size: {} chars)", content.length());
-
-                        return content.trim();
-
-                } catch (InterruptedException ex) {
-
-                        Thread.currentThread().interrupt();
-                        log.error("Groq request was interrupted");
-
-                        throw new IllegalStateException(
-                                        "Groq request interrupted",
-                                        ex);
-
-                } catch (Exception ex) {
-
-                        log.error(
-                                        "Groq advisory generation failed: {}",
-                                        ex.getMessage());
-
-                        throw new IllegalStateException(
-                                        "AI advisory generation failed",
-                                        ex);
-                }
+                log.debug("Calling Groq API for advisory generation (prompt size: {} chars)", prompt.length());
+                return groqClient.complete(
+                                "You are an agricultural advisory AI. Return ONLY valid JSON. Never invent facts.",
+                                prompt,
+                                1500,
+                                0.7);
         }
 
         private List<AdvisoryRecommendation> parseRecommendations(String content) {

@@ -4,6 +4,8 @@ import com.smartcrop.market.entity.Market;
 import com.smartcrop.market.entity.MarketPrice;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -18,9 +20,45 @@ public interface MarketPriceRepository extends JpaRepository<MarketPrice, Long> 
 
         List<MarketPrice> findByCropName(String cropName);
 
+        @Query("select price from MarketPrice price where lower(trim(price.cropName)) = lower(trim(:cropName))")
+        List<MarketPrice> findByCropNameIgnoreCase(@Param("cropName") String cropName);
+
         List<MarketPrice> findByCropNameAndMarket_State(
                         String cropName,
                         String state);
+
+        @Query("select price from MarketPrice price join price.market market "
+                        + "where lower(price.cropName) = lower(:cropName) "
+                        + "and lower(market.state) = lower(:state) "
+                        + "and lower(market.district) = lower(:district)")
+        List<MarketPrice> findByCropNameAndMarket_StateAndMarket_DistrictIgnoreCase(
+                        @Param("cropName") String cropName,
+                        @Param("state") String state,
+                        @Param("district") String district);
+
+        @Query("select price from MarketPrice price join price.market market "
+                        + "where lower(price.cropName) = lower(:cropName) "
+                        + "and lower(market.state) = lower(:state)")
+        List<MarketPrice> findByCropNameAndMarket_StateIgnoreCase(
+                        @Param("cropName") String cropName,
+                        @Param("state") String state);
+
+        @Query("select price from MarketPrice price join price.market market "
+                        + "where lower(trim(price.cropName)) = lower(trim(:cropName)) "
+                        + "and lower(trim(market.state)) = lower(trim(:state)) "
+                        + "and price.observedAt between :startDate and :endDate")
+        List<MarketPrice> findByCropNameAndMarket_StateIgnoreCaseAndObservedAtBetween(
+                        @Param("cropName") String cropName,
+                        @Param("state") String state,
+                        @Param("startDate") LocalDate startDate,
+                        @Param("endDate") LocalDate endDate);
+
+        @Query("select price from MarketPrice price where lower(trim(price.cropName)) = lower(trim(:cropName)) "
+                        + "and price.observedAt between :startDate and :endDate")
+        List<MarketPrice> findByCropNameIgnoreCaseAndObservedAtBetween(
+                        @Param("cropName") String cropName,
+                        @Param("startDate") LocalDate startDate,
+                        @Param("endDate") LocalDate endDate);
 
         List<MarketPrice> findByCropNameAndMarket_District(
                         String cropName,

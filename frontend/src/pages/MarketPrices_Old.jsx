@@ -39,7 +39,7 @@ const labelsByLanguage = {
     aiInsight: "AI Market Interpretation",
     aiDisclaimerShort: "AI interpretation based on real data",
     aiDisclaimer:
-      "AI-generated interpretation based on available market data. Verify the latest price with your local mandi before selling.",
+      "Verify the latest price with your local mandi before selling.",
     noInsight: "AI market interpretation is not available right now.",
     retry: "Try again",
     loading: "Loading market data...",

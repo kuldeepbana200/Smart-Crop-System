@@ -236,8 +236,7 @@ export const marketService = {
 };
 
 export const marketAdviceService = {
-  getMarketAdvice: () =>
-    api.post("/ai/market-advice", {}),
+  getMarketAdvice: () => api.post("/ai/market-advice", {}),
 };
 
 

@@ -26,16 +26,13 @@ public class MarketService {
 
         private final MarketRepository marketRepository;
         private final MarketPriceRepository marketPriceRepository;
-        private final GroqMarketDataService groqMarketDataService;
 
         public MarketService(
                         MarketRepository marketRepository,
-                        MarketPriceRepository marketPriceRepository,
-                        GroqMarketDataService groqMarketDataService) {
+                        MarketPriceRepository marketPriceRepository) {
 
                 this.marketRepository = marketRepository;
                 this.marketPriceRepository = marketPriceRepository;
-                this.groqMarketDataService = groqMarketDataService;
         }
 
         // =========================================================
@@ -79,17 +76,6 @@ public class MarketService {
                         String district,
                         String state) {
 
-                if (farmer != null) {
-                        List<MarketPriceResponse> generated = groqMarketDataService.getPricesForFarmer(
-                                        farmer,
-                                        cropName,
-                                        district,
-                                        state);
-                        if (!generated.isEmpty()) {
-                                return generated;
-                        }
-                }
-
                 return getPrices(cropName, district, state);
         }
 
@@ -102,26 +88,22 @@ public class MarketService {
 
                 if (cropName != null && !cropName.isBlank()) {
 
-                        if (state != null && !state.isBlank()) {
+                        List<MarketPrice> districtMatches = state != null && !state.isBlank()
+                                        && district != null && !district.isBlank()
+                                                        ? marketPriceRepository
+                                                                        .findByCropNameAndMarket_StateAndMarket_DistrictIgnoreCase(
+                                                                                        cropName, state, district)
+                                                        : List.of();
+                        List<MarketPrice> stateMatches = state != null && !state.isBlank()
+                                        ? marketPriceRepository.findByCropNameAndMarket_StateIgnoreCase(cropName, state)
+                                        : List.of();
+                        prices = !districtMatches.isEmpty() ? districtMatches
+                                        : !stateMatches.isEmpty() ? stateMatches
+                                                        : marketPriceRepository.findByCropNameIgnoreCase(cropName);
 
-                                prices = marketPriceRepository
-                                                .findByCropNameAndMarket_State(
-                                                                cropName,
-                                                                state);
-
-                        } else if (district != null && !district.isBlank()) {
-
-                                prices = marketPriceRepository
-                                                .findByCropNameAndMarket_District(
-                                                                cropName,
-                                                                district);
-
-                        } else {
-
-                                prices = marketPriceRepository
-                                                .findByCropName(cropName);
-                        }
-
+                        logger.info("Market lookup: crop={}, state={}, district={}, districtMatches={}, stateMatches={}, returned={}",
+                                        cropName, state, district, districtMatches.size(), stateMatches.size(),
+                                        prices.size());
                 } else {
 
                         if (state != null && !state.isBlank()) {
@@ -157,22 +139,6 @@ public class MarketService {
                         LocalDate startDate,
                         LocalDate endDate) {
 
-                if (farmer != null) {
-                        List<MarketPriceResponse> generated = groqMarketDataService.getPricesForFarmer(
-                                        farmer,
-                                        cropName,
-                                        farmer.getDistrict(),
-                                        farmer.getState());
-                        if (!generated.isEmpty()) {
-                                return generated.stream()
-                                                .filter(price -> price.getArrivalDate() != null)
-                                                .filter(price -> !price.getArrivalDate().isBefore(startDate))
-                                                .filter(price -> !price.getArrivalDate().isAfter(endDate))
-                                                .sorted(Comparator.comparing(MarketPriceResponse::getArrivalDate))
-                                                .toList();
-                        }
-                }
-
                 return getPriceHistory(cropName, state, startDate, endDate);
         }
 
@@ -206,16 +172,20 @@ public class MarketService {
                         if (state != null && !state.isBlank()) {
 
                                 prices = marketPriceRepository
-                                                .findByCropNameAndMarket_StateAndObservedAtBetween(
+                                                .findByCropNameAndMarket_StateIgnoreCaseAndObservedAtBetween(
                                                                 cropName,
                                                                 state,
                                                                 startDate,
                                                                 endDate);
+                                if (prices.isEmpty()) {
+                                        prices = marketPriceRepository.findByCropNameIgnoreCaseAndObservedAtBetween(
+                                                        cropName, startDate, endDate);
+                                }
 
                         } else {
 
                                 prices = marketPriceRepository
-                                                .findByCropNameAndObservedAtBetween(
+                                                .findByCropNameIgnoreCaseAndObservedAtBetween(
                                                                 cropName,
                                                                 startDate,
                                                                 endDate);
@@ -268,17 +238,6 @@ public class MarketService {
                         String state,
                         String district) {
 
-                if (farmer != null) {
-                        List<MarketPriceResponse> generated = groqMarketDataService.getPricesForFarmer(
-                                        farmer,
-                                        cropName,
-                                        district,
-                                        state);
-                        if (!generated.isEmpty()) {
-                                return generated;
-                        }
-                }
-
                 return getPriceComparison(cropName, state, district);
         }
 
@@ -294,22 +253,25 @@ public class MarketService {
                         if (district != null && !district.isBlank()) {
 
                                 prices = marketPriceRepository
-                                                .findByCropNameAndMarket_District(
+                                                .findByCropNameAndMarket_StateAndMarket_DistrictIgnoreCase(
                                                                 cropName,
+                                                                state,
                                                                 district);
+
+                                if (prices.isEmpty()) {
+                                        prices = marketPriceRepository
+                                                        .findByCropNameAndMarket_StateIgnoreCase(cropName, state);
+                                }
 
                         } else {
 
-                                prices = marketPriceRepository
-                                                .findByCropNameAndMarket_State(
-                                                                cropName,
-                                                                state);
+                                prices = marketPriceRepository.findByCropNameAndMarket_StateIgnoreCase(cropName, state);
                         }
 
                 } else {
 
                         prices = marketPriceRepository
-                                        .findByCropName(cropName);
+                                        .findByCropNameIgnoreCase(cropName);
                 }
 
                 return prices.stream()
@@ -333,7 +295,7 @@ public class MarketService {
                 }
 
                 return marketPriceRepository
-                                .findByCropName(cropName)
+                                .findByCropNameIgnoreCase(cropName)
                                 .stream()
                                 .map(this::mapToResponse)
                                 .toList();
