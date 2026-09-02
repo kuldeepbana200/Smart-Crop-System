@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { cropService } from "../services/api";
+import {
+  cropNameSuggestions,
+  estimateHarvestDate,
+  getCropReference,
+  getPlantingGuidance,
+  getStageOptions,
+} from "../utils/cropReference";
 
 const emptyForm = {
   cropName: "",
@@ -26,6 +33,39 @@ const MyCrops = () => {
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
+  const [cropSearch, setCropSearch] = useState("");
+  const [isCropSuggestionsOpen, setIsCropSuggestionsOpen] = useState(false);
+  const [farmerProfile, setFarmerProfile] = useState({
+    state: "",
+    district: "",
+  });
+
+  const selectedCropReference = useMemo(
+    () => getCropReference(form.cropName),
+    [form.cropName],
+  );
+  const stageOptions = useMemo(
+    () => getStageOptions(form.cropName),
+    [form.cropName],
+  );
+  const plantingGuidance = useMemo(
+    () =>
+      getPlantingGuidance(
+        form.cropName,
+        farmerProfile.state,
+        farmerProfile.district,
+      ),
+    [form.cropName, farmerProfile.state, farmerProfile.district],
+  );
+  const cropSuggestions = useMemo(() => {
+    const term = cropSearch.trim().toLowerCase();
+    if (!term) {
+      return cropNameSuggestions.slice(0, 12);
+    }
+    return cropNameSuggestions.filter((name) =>
+      name.toLowerCase().includes(term),
+    );
+  }, [cropSearch]);
 
   const loadCrops = async () => {
     setLoading(true);
@@ -66,7 +106,49 @@ const MyCrops = () => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+
+    setForm((current) => {
+      const updated = { ...current, [name]: value };
+
+      if (name === "cropName") {
+        const cropRef = getCropReference(value);
+        setCropSearch(value);
+        if (
+          cropRef &&
+          !cropRef.stages.some((stage) => stage.backend === updated.cropStage)
+        ) {
+          updated.cropStage = cropRef.stages[0]?.backend || "";
+        }
+      }
+
+      if (name === "sowingDate" && value && updated.cropName) {
+        updated.expectedHarvestDate = estimateHarvestDate(
+          updated.cropName,
+          value,
+        );
+      }
+
+      return updated;
+    });
+  };
+
+  const handleCropSelect = (cropName) => {
+    setForm((current) => {
+      const cropRef = getCropReference(cropName);
+      return {
+        ...current,
+        cropName,
+        cropStage: cropRef?.stages?.[0]?.backend || current.cropStage || "",
+      };
+    });
+    setCropSearch(cropName);
+    setIsCropSuggestionsOpen(false);
+    if (form.sowingDate) {
+      setForm((current) => ({
+        ...current,
+        expectedHarvestDate: estimateHarvestDate(cropName, current.sowingDate),
+      }));
+    }
   };
 
   const resetForm = () => {
@@ -78,6 +160,23 @@ const MyCrops = () => {
     event.preventDefault();
     setSaving(true);
     setError("");
+
+    if (
+      !form.cropName ||
+      !form.cropStage ||
+      !form.sowingDate ||
+      !form.expectedHarvestDate
+    ) {
+      setError("Please complete all crop details before saving.");
+      setSaving(false);
+      return;
+    }
+
+    if (new Date(form.expectedHarvestDate) < new Date(form.sowingDate)) {
+      setError("Harvest date should be after the planting date.");
+      setSaving(false);
+      return;
+    }
 
     try {
       if (editingId) {
@@ -106,6 +205,7 @@ const MyCrops = () => {
       sowingDate: crop.sowingDate || "",
       expectedHarvestDate: crop.expectedHarvestDate || "",
     });
+    setCropSearch(crop.cropName || "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -128,6 +228,66 @@ const MyCrops = () => {
       );
     }
   };
+
+  useEffect(() => {
+    const fetchFarmerProfile = async () => {
+      try {
+        const { data } = await fetch("/api/farmers/profile").then((res) =>
+          res.json(),
+        );
+        setFarmerProfile({
+          state: data?.state || "",
+          district: data?.district || "",
+        });
+      } catch (error) {
+        setFarmerProfile({ state: "", district: "" });
+      }
+    };
+
+    fetchFarmerProfile();
+  }, []);
+
+  const selectedStage =
+    stageOptions.find((stage) => stage.backend === form.cropStage) || null;
+  const plantingWarning =
+    form.cropName &&
+    form.sowingDate &&
+    selectedCropReference &&
+    selectedCropReference.plantingPeriod &&
+    selectedCropReference.plantingPeriod !== "General planting guidance" &&
+    !selectedCropReference.plantingPeriod.toLowerCase().includes("varies") &&
+    !selectedCropReference.plantingPeriod.toLowerCase().includes("guidance") &&
+    (() => {
+      const month = new Date(`${form.sowingDate}T00:00:00`).getMonth();
+      const plantingMonths =
+        selectedCropReference.plantingPeriod
+          .match(/\d{4}|[A-Za-z]+/g)
+          ?.filter((part) => !/^\d+$/.test(part)) || [];
+
+      const monthMap = {
+        January: 0,
+        February: 1,
+        March: 2,
+        April: 3,
+        May: 4,
+        June: 5,
+        July: 6,
+        August: 7,
+        September: 8,
+        October: 9,
+        November: 10,
+        December: 11,
+      };
+
+      if (plantingMonths.length === 0) return "";
+      const allowedMonths = plantingMonths
+        .map((monthName) => monthMap[monthName])
+        .filter(Boolean);
+      if (allowedMonths.length === 0) return "";
+      return allowedMonths.includes(month)
+        ? ""
+        : `⚠️ This is outside the usual planting period for ${form.cropName}.`;
+    })();
 
   return (
     <div className="min-h-screen bg-emerald-50 px-4 py-6">
@@ -184,31 +344,76 @@ const MyCrops = () => {
             </div>
 
             <div className="space-y-4">
-              <div>
+              <div className="relative">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   Crop name
                 </label>
                 <input
                   name="cropName"
-                  value={form.cropName}
-                  onChange={handleChange}
+                  value={cropSearch}
+                  onChange={(event) => {
+                    setCropSearch(event.target.value);
+                    setIsCropSuggestionsOpen(true);
+                    setForm((current) => ({
+                      ...current,
+                      cropName: event.target.value,
+                    }));
+                  }}
+                  onFocus={() => setIsCropSuggestionsOpen(true)}
                   required
                   className="w-full rounded-xl border border-slate-300 px-3 py-3 text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                  placeholder="Wheat, Rice, Cotton..."
+                  placeholder="Search crop..."
                 />
+                {isCropSuggestionsOpen && cropSuggestions.length > 0 && (
+                  <div className="absolute z-10 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                    {cropSuggestions.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => handleCropSelect(name)}
+                        className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-emerald-50"
+                      >
+                        <span>{name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {selectedCropReference && (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  <div className="font-medium">Usual planting period</div>
+                  <div>{plantingGuidance.detail}</div>
+                </div>
+              )}
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   Crop stage
                 </label>
-                <input
+                <select
                   name="cropStage"
                   value={form.cropStage}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-300 px-3 py-3 text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                  placeholder="Seedling, Flowering, Mature..."
-                />
+                >
+                  {!form.cropName && (
+                    <option value="">Select a crop first</option>
+                  )}
+                  {stageOptions.length === 0 && form.cropName && (
+                    <option value="">No stages available</option>
+                  )}
+                  {stageOptions.map((stage) => (
+                    <option key={stage.backend} value={stage.backend}>
+                      {stage.label}
+                    </option>
+                  ))}
+                </select>
+                {selectedStage && (
+                  <p className="mt-2 text-xs text-slate-600">
+                    {selectedStage.label} — {selectedStage.description}
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -240,6 +445,24 @@ const MyCrops = () => {
                   />
                 </div>
               </div>
+
+              {plantingWarning && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  {plantingWarning}
+                  <div className="mt-1 text-xs text-amber-700">
+                    Usual period: {selectedCropReference.plantingPeriod}
+                  </div>
+                </div>
+              )}
+
+              {form.cropName && form.sowingDate && (
+                <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+                  Estimated harvest date:{" "}
+                  {form.expectedHarvestDate
+                    ? formatDate(form.expectedHarvestDate)
+                    : "—"}
+                </div>
+              )}
 
               {error && (
                 <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

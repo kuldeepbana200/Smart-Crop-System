@@ -5,7 +5,7 @@ import com.smartcrop.auth.dto.RegistrationRequest;
 import com.smartcrop.auth.entity.Role;
 import com.smartcrop.auth.entity.User;
 import com.smartcrop.auth.repository.UserRepository;
-import com.smartcrop.farmer.entity.Farmer;
+
 import com.smartcrop.farmer.repository.FarmerRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

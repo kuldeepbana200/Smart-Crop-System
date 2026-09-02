@@ -1,206 +1,229 @@
-import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext.jsx";
 import {
   cropService,
   farmerService,
-  marketAdviceService,
   marketService,
-} from "../services/api";
+  marketAdviceService,
+} from "../services/api.js";
+import { useEffect, useMemo, useState } from "react";
 
 const currencyFormatter = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
+  minimumFractionDigits: 0,
   maximumFractionDigits: 0,
 });
 
 const labelsByLanguage = {
   en: {
-    marketPrices: "Market prices",
-    cropOverview: "Crop price overview",
+    marketDashboard: "Market Dashboard",
     subtitle:
-      "Review market values for crops in your region. Prices shown are backend-driven and may vary by market and date.",
+      "Latest market prices for your crops. All prices are sourced from our verified market dataset. Verify the latest price with your local mandi before selling.",
     myCrops: "My Crops",
+    selectCrop: "Select a crop to view prices",
     cropName: "Crop name",
     state: "State",
     district: "District",
-    apply: "Apply",
-    clear: "Clear",
-    highest: "Highest modal price",
-    lowest: "Lowest modal price",
-    average: "Average modal price",
-    noPrices: "No market prices found",
-    noPricesHint:
-      "Try another crop name, state, or district to view available market prices.",
-    topRealPrices: "Top real market prices for this crop",
-    bestAvailable: "Best available price",
+    applyFilters: "Apply Filters",
+    clearFilters: "Clear",
+    priceSummary: "Price Summary",
+    bestPrice: "Best Available Price",
+    lowestPrice: "Lowest Available Price",
+    yourAreaPrice: "Your Area Price",
+    priceUnit: "/ quintal",
+    marketComparison: "Market Comparison",
     market: "Market",
     location: "Location",
     unit: "Unit",
     date: "Date",
-    trend: "Trend",
-    compare: "Market comparison",
-    aiInsight: "AI Market Insight",
-    aiGenerated: "AI-generated from available market data",
-    noInsight: "AI market insight is not available right now.",
+    priceTrend: "Price Trend",
+    aiInsight: "AI Market Interpretation",
+    aiDisclaimerShort: "Based on real market data",
+    aiDisclaimer:
+      "AI-generated interpretation based on available market data. Verify the latest price with your local mandi before selling.",
+    noInsight: "AI market interpretation is not available right now.",
     retry: "Try again",
     loading: "Loading market data...",
-    noCrops: "No crops are currently added to your profile.",
+    noCrops:
+      "No crops are currently added to your profile. Add your crops to view market prices.",
+    noCropsHint: "Go to My Crops to add your crops.",
     farmLocation: "Farm location",
     compareHint: "Real backend market comparison for this crop",
-    noComparison: "No comparison data is available for this crop yet.",
-    noTrend: "Trend data is unavailable for this crop yet.",
-    disclaimer:
-      "AI-generated market estimates — verify with your local mandi before selling.",
+    noComparison: "No comparison data is available for this crop.",
+    noTrend: "Trend data is unavailable for this crop.",
+    noPrices: "No market prices found",
+    noPricesForCrop: "No market data available for this crop",
+    noPricesForDistrict: "No market data available for your district",
+    noPricesForState: "No market data available for your state",
+    noPricesHint:
+      "Try another crop, state, or district to view available market prices.",
+    dataSource: "Market prices are sourced from our verified market dataset.",
+    notAvailable: "Not available",
+    loadingPrices: "Loading prices...",
+    loadingInsight: "Loading insight...",
+    highestPrice: "Highest price",
+    lowestAvailable: "Lowest price",
+    yourDistrict: "Your district",
+    selectACrop: "Select a crop to see market data for your area.",
   },
   hi: {
-    marketPrices: "बाजार कीमतें",
-    cropOverview: "फसल कीमत अवलोकन",
+    marketDashboard: "बाजार डैशबोर्ड",
     subtitle:
-      "अपने क्षेत्र की फसलों की बाजार कीमतें देखें। कीमतें बैकएंड से ली गई हैं और बाजार/तारीख के अनुसार बदल सकती हैं।",
+      "आपकी फसलों के लिए नवीनतम बाजार कीमतें। सभी कीमतें हमारे सत्यापित बाजार डेटासेट से ली गई हैं। बेचने से पहले अपने स्थानीय मंडी से नवीनतम कीमत सत्यापित करें।",
     myCrops: "मेरी फसलें",
+    selectCrop: "कीमतें देखने के लिए एक फसल चुनें",
     cropName: "फसल का नाम",
     state: "राज्य",
     district: "जिला",
-    apply: "लागू करें",
-    clear: "साफ करें",
-    highest: "सबसे अधिक मोडल कीमत",
-    lowest: "सबसे कम मोडल कीमत",
-    average: "औसत मोडल कीमत",
-    noPrices: "कोई बाजार कीमत नहीं मिली",
-    noPricesHint: "दूसरा फसल नाम, राज्य या जिला आज़माएँ।",
-    topRealPrices: "इस फसल की शीर्ष वास्तविक बाजार कीमतें",
-    bestAvailable: "सबसे अच्छी उपलब्ध कीमत",
+    applyFilters: "फिल्टर लागू करें",
+    clearFilters: "साफ करें",
+    priceSummary: "कीमत सारांश",
+    bestPrice: "सर्वश्रेष्ठ उपलब्ध कीमत",
+    lowestPrice: "सबसे कम उपलब्ध कीमत",
+    yourAreaPrice: "आपके क्षेत्र की कीमत",
+    priceUnit: "/ क्विंटल",
+    marketComparison: "बाजार तुलना",
     market: "बाजार",
     location: "स्थान",
     unit: "इकाई",
     date: "तारीख",
-    trend: "रुझान",
-    compare: "बाजार तुलना",
-    aiInsight: "एआई बाजार अंतर्दृष्टि",
-    aiGenerated: "उपलब्ध बाजार डेटा से एआई जनित",
-    noInsight: "एआई बाजार अंतर्दृष्टि अभी उपलब्ध नहीं है।",
+    priceTrend: "कीमत का रुझान",
+    aiInsight: "AI बाजार व्याख्या",
+    aiDisclaimerShort: "वास्तविक बाजार डेटा के आधार पर",
+    aiDisclaimer:
+      "उपलब्ध बाजार डेटा के आधार पर AI-जनित व्याख्या। बेचने से पहले अपने स्थानीय मंडी से नवीनतम कीमत सत्यापित करें।",
+    noInsight: "AI बाजार व्याख्या अभी उपलब्ध नहीं है।",
     retry: "फिर से प्रयास करें",
     loading: "बाजार डेटा लोड हो रहा है...",
-    noCrops: "आपके प्रोफ़ाइल में अभी कोई फसल नहीं है।",
+    noCrops:
+      "आपकी प्रोफ़ाइल में अभी कोई फसल जोड़ी नहीं गई है। कीमतें देखने के लिए अपनी फसलें जोड़ें।",
+    noCropsHint: "अपनी फसलें जोड़ने के लिए मेरी फसलें पर जाएं।",
     farmLocation: "खेत का स्थान",
     compareHint: "इस फसल के लिए वास्तविक बैकएंड बाजार तुलना",
     noComparison: "इस फसल के लिए तुलना डेटा उपलब्ध नहीं है।",
     noTrend: "इस फसल के लिए रुझान डेटा उपलब्ध नहीं है।",
-    disclaimer:
-      "एआई-जनित बाजार अनुमान — बेचने से पहले अपने स्थानीय मंडी से सत्यापित करें।",
+    noPrices: "कोई बाजार कीमत नहीं मिली",
+    noPricesForCrop: "इस फसल के लिए कोई बाजार डेटा उपलब्ध नहीं है",
+    noPricesForDistrict: "आपके जिले के लिए कोई बाजार डेटा उपलब्ध नहीं है",
+    noPricesForState: "आपके राज्य के लिए कोई बाजार डेटा उपलब्ध नहीं है",
+    noPricesHint:
+      "उपलब्ध बाजार कीमतें देखने के लिए दूसरी फसल, राज्य या जिला आजमाएं।",
+    dataSource: "बाजार कीमतें हमारे सत्यापित बाजार डेटासेट से ली गई हैं।",
+    notAvailable: "उपलब्ध नहीं",
+    loadingPrices: "कीमतें लोड हो रही हैं...",
+    loadingInsight: "अंतर्दृष्टि लोड हो रही है...",
+    highestPrice: "उच्चतम कीमत",
+    lowestAvailable: "न्यूनतम कीमत",
+    yourDistrict: "आपका जिला",
+    selectACrop: "आपके क्षेत्र के लिए बाजार डेटा देखने के लिए एक फसल चुनें।",
   },
   or: {
-    marketPrices: "ବଜାର ମୂଲ୍ୟ",
-    cropOverview: "ଫସଲ ମୂଲ୍ୟ ସମୀକ୍ଷା",
+    marketDashboard: "ବଜାର ଡ୍ୟାଶବୋର୍ଡ",
     subtitle:
-      "ଆପଣଙ୍କ ସ୍ଥାନର ଫସଲଗୁଡ଼ିକର ବଜାର ମୂଲ୍ୟ ଦେଖନ୍ତୁ। ମୂଲ୍ୟଗୁଡ଼ିକ ବ୍ୟାକଏଣ୍ଡ ଦ୍ୱାରା ହାସ୍ତାଚ୍ଛନ୍ତ ଏବଂ ବଜାର/ତାରିଖ ଅନୁସାରେ ବଦଳିପାରେ।",
+      "ଆପଣଙ୍କ ଫସଲ ପାଇଁ ନବୀନତମ ବଜାର ମୂଲ୍ୟ। ସମସ୍ତ ମୂଲ୍ୟ ଆମର ସତ୍ୟାପିତ ବଜାର ଡେଟାସେଟ ଠାରୁ ସୋର୍ସ। ବିକ୍ରୟ କରିବା ପୂର୍ବରୁ ଆପଣଙ୍କ ସ୍ଥାନୀୟ ମଣ୍ଡିରୁ ସର୍ବଶେଷ ମୂଲ୍ୟ ଯାଞ୍ଚ କରନ୍ତୁ।",
     myCrops: "ମୋର ଫସଲ",
+    selectCrop: "ମୂଲ୍ୟ ଦେଖିବା ପାଇଁ ଏକ ଫସଲ ବାଛନ୍ତୁ",
     cropName: "ଫସଲ ନାମ",
     state: "ରାଜ୍ୟ",
     district: "ଜିଲ୍ଲା",
-    apply: "ପ୍ରୟୋଗ କରନ୍ତୁ",
-    clear: "ସଫା କରନ୍ତୁ",
-    highest: "ସବୁଠାରୁ ଅଧିକ ମୋଡେଲ ମୂଲ୍ୟ",
-    lowest: "ସବୁଠାରୁ କମ୍ ମୋଡେଲ ମୂଲ୍ୟ",
-    average: "ଔଷଧି ମୋଡେଲ ମୂଲ୍ୟ",
-    noPrices: "କୌଣସି ବଜାର ମୂଲ୍ୟ ମିଳିଲା ନାହିଁ",
-    noPricesHint: "ଅନ୍ୟ ଫସଲ ନାମ, ରାଜ୍ୟ, କିମ୍ବା ଜିଲ୍ଲା ଚେଷ୍ଟା କରନ୍ତୁ।",
-    topRealPrices: "ଏହି ଫସଲର ସର୍ବୋଚ୍ଚ ବାସ୍ତବିକ ବଜାର ମୂଲ୍ୟ",
-    bestAvailable: "ସବୁଠାରୁ ଉତ୍ତମ ଉପଲବ୍ଧ ମୂଲ୍ୟ",
+    applyFilters: "ଫିଲ୍ଟର ପ୍ରୟୋଗ କରନ୍ତୁ",
+    clearFilters: "ସଫା କରନ୍ତୁ",
+    priceSummary: "ମୂଲ୍ୟ ସାରାଂଶ",
+    bestPrice: "ସର୍ବୋତ୍ତମ ଉପଲବ୍ଧ ମୂଲ୍ୟ",
+    lowestPrice: "ସବୁଠାରୁ କମ୍ ଉପଲବ୍ଧ ମୂଲ୍ୟ",
+    yourAreaPrice: "ଆପଣଙ୍କ ଏଲାକାର ମୂଲ୍ୟ",
+    priceUnit: "/ କ୍ବିନ୍ଟାଲ୍",
+    marketComparison: "ବଜାର ତୁଳନା",
     market: "ବଜାର",
     location: "ସ୍ଥାନ",
     unit: "ଏକକ",
     date: "ତାରିଖ",
-    trend: "ପ୍ରବୃତ୍ତି",
-    compare: "ବଜାର ତୁଳନା",
-    aiInsight: "AI ବଜାର ଅନ୍ତର୍ଦୃଷ୍ଟି",
-    aiGenerated: "ଉପଲବ୍ଧ ବଜାର ତଥ୍ୟ ଦ୍ୱାରା AI ଜନିତ",
-    noInsight: "AI ବଜାର ଅନ୍ତର୍ଦୃଷ୍ଟି ଏବେ ଉପଲବ୍ଧ ନାହିଁ।",
+    priceTrend: "ମୂଲ୍ୟ ପ୍ରବୃତ୍ତି",
+    aiInsight: "AI ବଜାର ବ୍ୟାଖ୍ୟା",
+    aiDisclaimerShort: "ବାସ୍ତବ ବଜାର ଡେଟା ଉପରେ ଆଧାରିତ",
+    aiDisclaimer:
+      "ଉପଲବ୍ଧ ବଜାର ଡେଟା ଉପରେ ଆଧାରିତ AI-ଜନିତ ବ୍ୟାଖ୍ୟା। ବିକ୍ରୟ କରିବା ପୂର୍ବରୁ ଆପଣଙ୍କ ସ୍ଥାନୀୟ ମଣ୍ଡିରୁ ସର୍ବଶେଷ ମୂଲ୍ୟ ଯାଞ୍ଚ କରନ୍ତୁ।",
+    noInsight: "AI ବଜାର ବ୍ୟାଖ୍ୟା ବର୍ତ୍ତମାନ ଉପଲବ୍ଧ ନାହିଁ।",
     retry: "ପୁନ୍ରାୟାସ କରନ୍ତୁ",
-    loading: "ବଜାର ତଥ୍ୟ ଲୋଡ୍ ହେଉଛି...",
-    noCrops: "ଆପଣଙ୍କ ପ୍ରୋଫାଇଲରେ ବର୍ତ୍ତମାନ କୌଣସି ଫସଲ ନାହିଁ।",
+    loading: "ବଜାର ଡେଟା ଲୋଡ୍ ହେଉଛି...",
+    noCrops:
+      "ଆପଣଙ୍କ ପ୍ରୋଫାଇଲରେ ବର୍ତ୍ତମାନ କୌଣସି ଫସଲ ଯୋଗ କରାଯାଇନାହିଁ। ମୂଲ୍ୟ ଦେଖିବା ପାଇଁ ଆପଣଙ୍କ ଫସଲ ଯୋଗ କରନ୍ତୁ।",
+    noCropsHint: "ଆପଣଙ୍କ ଫସଲ ଯୋଗ କରିବା ପାଇଁ ମୋର ଫସଲ ଯାଆନ୍ତୁ।",
     farmLocation: "କ୍ଷେତ୍ର ସ୍ଥାନ",
     compareHint: "ଏହି ଫସଲର ବାସ୍ତବିକ ବ୍ୟାକଏଣ୍ଡ ବଜାର ତୁଳନା",
-    noComparison: "ଏହି ଫସଲ ପାଇଁ ତୁଳନା ତଥ୍ୟ ଉପଲବ୍ଧ ନାହିଁ।",
-    noTrend: "ଏହି ଫସଲ ପାଇଁ ପ୍ରବୃତ୍ତି ତଥ୍ୟ ଉପଲବ୍ଧ ନାହିଁ।",
-    disclaimer:
-      "AI-ଜନିତ ବଜାର ଆନୁମାନ — ବେଚିବା ପୂର୍ବରୁ ଆପଣଙ୍କ ସ୍ଥାନୀୟ ମଣ୍ଡି ଦ୍ୱାରା ଯାଞ୍ଚ କରନ୍ତୁ।",
+    noComparison: "ଏହି ଫସଲ ପାଇଁ ତୁଳନା ଡେଟା ଉପଲବ୍ଧ ନାହିଁ।",
+    noTrend: "ଏହି ଫସଲ ପାଇଁ ପ୍ରବୃତ୍ତି ଡେଟା ଉପଲବ୍ଧ ନାହିଁ।",
+    noPrices: "କୌଣସି ବଜାର ମୂଲ୍ୟ ମିଳିଲା ନାହିଁ",
+    noPricesForCrop: "ଏହି ଫସଲ ପାଇଁ କୌଣସି ବଜାର ଡେଟା ଉପଲବ୍ଧ ନାହିଁ",
+    noPricesForDistrict: "ଆପଣଙ୍କ ଜିଲ୍ଲା ପାଇଁ କୌଣସି ବଜାର ଡେଟା ଉପଲବ୍ଧ ନାହିଁ",
+    noPricesForState: "ଆପଣଙ୍କ ରାଜ୍ୟ ପାଇଁ କୌଣସି ବଜାର ଡେଟା ଉପଲବ୍ଧ ନାହିଁ",
+    noPricesHint:
+      "ଉପଲବ୍ଧ ବଜାର ମୂଲ୍ୟ ଦେଖିବା ପାଇଁ ଅନ୍ୟ ଫସଲ, ରାଜ୍ୟ, କିମ୍ବା ଜିଲ୍ଲା ଚେଷ୍ଟା କରନ୍ତୁ।",
+    dataSource: "ବଜାର ମୂଲ୍ୟ ଆମର ସତ୍ୟାପିତ ବଜାର ଡେଟାସେଟ ଠାରୁ ସୋର୍ସ।",
+    notAvailable: "ଉପଲବ୍ଧ ନାହିଁ",
+    loadingPrices: "ମୂଲ୍ୟ ଲୋଡ୍ ହେଉଛି...",
+    loadingInsight: "ବ୍ୟାଖ୍ୟା ଲୋଡ୍ ହେଉଛି...",
+    highestPrice: "ସର୍ବୋଚ୍ଚ ମୂଲ୍ୟ",
+    lowestAvailable: "ସବୁଠାରୁ କମ୍ ମୂଲ୍ୟ",
+    yourDistrict: "ଆପଣଙ୍କ ଜିଲ୍ଲା",
+    selectACrop: "ଆପଣଙ୍କ ଏଲାକାର ବଜାର ଡେଟା ଦେଖିବା ପାଇଁ ଏକ ଫସଲ ବାଛନ୍ତୁ।",
   },
   mr: {
-    marketPrices: "बाजार भाव",
-    cropOverview: "पिके भाव overview",
+    marketDashboard: "बाजार डॅशबोर्ड",
     subtitle:
-      "तुमच्या परिसरातील पिकांच्या बाजार भावांचे निरीक्षण करा. भाव हे बॅकएंड-आधारित आहेत आणि बाजार/तारीखानुसार बदलू शकतात.",
+      "आपल्या पिकांसाठी नवीनतम बाजार भाव। सर्व भाव आमच्या सत्यापित बाजार डेटासेटमधून घेतले आहेत। विकण्यापूर्वी आपल्या स्थानिक मंडीमध्ये नवीनतम भाव सत्यापित करा।",
     myCrops: "माझ्या पिके",
+    selectCrop: "भाव पाहण्यासाठी एक पीक निवडा",
     cropName: "पिकाचे नाव",
     state: "राज्य",
     district: "जिल्हा",
-    apply: "लागू करा",
-    clear: "पुसून टाका",
-    highest: "सर्वात जास्त मोडल भाव",
-    lowest: "सर्वात कमी मोडल भाव",
-    average: "सरासरी मोडल भाव",
-    noPrices: "कोणताही बाजार भाव सापडला नाही",
-    noPricesHint: "दुसरे पीक नाव, राज्य किंवा जिल्हा वापरून पहा.",
-    topRealPrices: "या पिकासाठी सर्वोच्च वास्तविक बाजार भाव",
-    bestAvailable: "उपलब्ध सर्वोत्तम भाव",
+    applyFilters: "फिल्टर लागू करा",
+    clearFilters: "पुसून टाका",
+    priceSummary: "भाव सारांश",
+    bestPrice: "उपलब्ध सर्वोत्तम भाव",
+    lowestPrice: "उपलब्ध सर्वनिम्न भाव",
+    yourAreaPrice: "आपल्या क्षेत्रातील भाव",
+    priceUnit: "/ क्विंटल",
+    marketComparison: "बाजार तुलना",
     market: "बाजार",
     location: "स्थान",
     unit: "एकक",
     date: "तारीख",
-    trend: "प्रवृत्ती",
-    compare: "बाजार तुलना",
-    aiInsight: "AI बाजार अंतर्दृष्टी",
-    aiGenerated: "उपलब्ध बाजार डेटावरून AI द्वारे तयार केलेले",
-    noInsight: "AI बाजार अंतर्दृष्टी उपलब्ध नाही.",
+    priceTrend: "भाव प्रवृत्ती",
+    aiInsight: "AI बाजार व्याख्या",
+    aiDisclaimerShort: "वास्तविक बाजार डेटावर आधारित",
+    aiDisclaimer:
+      "उपलब्ध बाजार डेटावर आधारित AI-जनित व्याख्या। विकण्यापूर्वी आपल्या स्थानिक मंडीमध्ये नवीनतम भाव सत्यापित करा।",
+    noInsight: "AI बाजार व्याख्या आता उपलब्ध नाही।",
     retry: "पुन्हा प्रयत्न करा",
     loading: "बाजार डेटा लोड होत आहे...",
-    noCrops: "तुमच्या प्रोफाइलमध्ये सध्या कोणतीही पिके नाहीत.",
+    noCrops:
+      "आपल्या प्रोफाइलमध्ये सध्या कोणतीही पिके नाहीत। भाव पाहण्यासाठी आपली पिके जोडा।",
+    noCropsHint: "आपली पिके जोडण्यासाठी माझ्या पिकांकडे जा।",
     farmLocation: "शेताचे स्थान",
     compareHint: "या पिकासाठी वास्तविक बॅकएंड बाजार तुलना",
-    noComparison: "या पिकासाठी तुलना डेटा उपलब्ध नाही.",
-    noTrend: "या पिकासाठी प्रवृत्ती डेटा उपलब्ध नाही.",
-    disclaimer:
-      "AI-जनित बाजार अंदाज — विक्री करण्यापूर्वी तुमच्या स्थानिक मंडीमध्ये पडताळणी करा.",
+    noComparison: "या पिकासाठी तुलना डेटा उपलब्ध नाही।",
+    noTrend: "या पिकासाठी प्रवृत्ती डेटा उपलब्ध नाही।",
+    noPrices: "कोणताही बाजार भाव सापडला नाही",
+    noPricesForCrop: "या पिकासाठी कोणताही बाजार डेटा उपलब्ध नाही",
+    noPricesForDistrict: "आपल्या जिल्ह्यासाठी कोणताही बाजार डेटा उपलब्ध नाही",
+    noPricesForState: "आपल्या राज्यासाठी कोणताही बाजार डेटा उपलब्ध नाही",
+    noPricesHint:
+      "उपलब्ध बाजार भाव पाहण्यासाठी दुसरी पीक, राज्य किंवा जिल्हा वापरून पहा।",
+    dataSource: "बाजार भाव आमच्या सत्यापित बाजार डेटासेटमधून घेतले आहेत।",
+    notAvailable: "उपलब्ध नाही",
+    loadingPrices: "भाव लोड होत आहेत...",
+    loadingInsight: "व्याख्या लोड होत आहे...",
+    highestPrice: "सर्वोच्च भाव",
+    lowestAvailable: "न्यूनतम भाव",
+    yourDistrict: "आपला जिल्हा",
+    selectACrop: "आपल्या क्षेत्रातील बाजार डेटा पाहण्यासाठी एक पीक निवडा।",
   },
 };
 
 const isValidMarketPrice = (value) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) && numeric > 0 && numeric < 500000;
-};
-
-const getTopMarketPrices = (items = []) => {
-  const validItems = items.filter((item) =>
-    isValidMarketPrice(item?.modalPrice),
-  );
-  return [...validItems]
-    .sort((a, b) => Number(b.modalPrice) - Number(a.modalPrice))
-    .slice(0, 5);
-};
-
-const groupPricesByCrop = (items = []) => {
-  const grouped = new Map();
-
-  items.forEach((item) => {
-    const cropName = (
-      item?.commodity ||
-      item?.cropName ||
-      "Unknown crop"
-    ).trim();
-    if (!cropName) return;
-
-    const existing = grouped.get(cropName) || [];
-    existing.push(item);
-    grouped.set(cropName, existing);
-  });
-
-  return Array.from(grouped.entries())
-    .map(([cropName, cropItems]) => ({
-      cropName,
-      prices: getTopMarketPrices(cropItems),
-    }))
-    .filter((group) => group.prices.length > 0);
 };
 
 const formatDate = (value) => {
@@ -223,6 +246,7 @@ const MarketPrices = () => {
   const [prices, setPrices] = useState([]);
   const [myCrops, setMyCrops] = useState([]);
   const [farmerProfile, setFarmerProfile] = useState(null);
+  const [selectedCrop, setSelectedCrop] = useState("");
   const [marketAdvice, setMarketAdvice] = useState([]);
   const [priceHistory, setPriceHistory] = useState([]);
   const [comparison, setComparison] = useState([]);
@@ -234,93 +258,70 @@ const MarketPrices = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [insightLoading, setInsightLoading] = useState(false);
-  const [insightError, setInsightError] = useState("");
 
-  const loadPrices = async (nextFilters = filters) => {
+  // Load farmer profile and crops
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        const [profileResponse, cropsResponse] = await Promise.all([
+          farmerService.getProfile().catch(() => null),
+          cropService.getCrops().catch(() => []),
+        ]);
+
+        const profile = profileResponse?.data || null;
+        const cropList = Array.isArray(cropsResponse?.data)
+          ? cropsResponse.data
+          : [];
+
+        setFarmerProfile(profile);
+        setMyCrops(cropList);
+
+        // Pre-select first crop if available
+        if (cropList.length > 0) {
+          const firstCrop = cropList[0].cropName || "";
+          setSelectedCrop(firstCrop);
+          setFilters({
+            cropName: firstCrop,
+            state: profile?.state || "",
+            district: profile?.district || "",
+          });
+          await loadPricesForCrop(
+            firstCrop,
+            profile?.state || "",
+            profile?.district || "",
+          );
+        } else {
+          setLoading(false);
+        }
+
+        // Load market insights
+        await loadMarketInsights();
+      } catch (err) {
+        setError("Unable to load market context.");
+        setLoading(false);
+      }
+    };
+
+    initialize();
+  }, []);
+
+  const loadPricesForCrop = async (cropName, state, district) => {
     setLoading(true);
     setError("");
 
     try {
-      const hasSearchFilters = Boolean(
-        nextFilters.cropName?.trim() ||
-        nextFilters.state?.trim() ||
-        nextFilters.district?.trim(),
-      );
+      const { data } = await marketService.getPrices({
+        cropName,
+        state: state || undefined,
+        district: district || undefined,
+      });
+      setPrices(Array.isArray(data) ? data : []);
 
-      if (!hasSearchFilters) {
-        const { data: crops = [] } = await cropService.getCrops();
-        const cropNames = [
-          ...new Set(crops.map((crop) => crop.cropName).filter(Boolean)),
-        ];
-
-        if (!cropNames.length) {
-          setPrices([]);
-          return;
-        }
-
-        const responses = await Promise.all(
-          cropNames.map(async (cropName) => {
-            try {
-              const { data } = await marketService.getPrices({ cropName });
-              return Array.isArray(data) ? data : [];
-            } catch {
-              return [];
-            }
-          }),
-        );
-
-        const merged = responses.flat();
-        setPrices(merged);
-        return;
-      }
-
-      const { data } = await marketService.getPrices(nextFilters);
-      setPrices(data || []);
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Unable to load market prices right now.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMarketInsights = async () => {
-    setInsightLoading(true);
-    setInsightError("");
-
-    try {
-      const { data } = await marketAdviceService.getMarketAdvice();
-      setMarketAdvice(Array.isArray(data) ? data : []);
-    } catch (err) {
-      const message =
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        err.message ||
-        "Unable to load AI market insight.";
-      setInsightError(message);
-      setMarketAdvice([]);
-    } finally {
-      setInsightLoading(false);
-    }
-  };
-
-  const loadMarketDetails = async (cropName, state, district) => {
-    if (!cropName) {
-      setPriceHistory([]);
-      setComparison([]);
-      return;
-    }
-
-    try {
+      // Load history and comparison
       const [historyResponse, compareResponse] = await Promise.allSettled([
         marketService.getPriceHistory({
           cropName,
           state: state || undefined,
-          startDate: undefined,
-          endDate: undefined,
         }),
         marketService.comparePrices({
           cropName,
@@ -335,8 +336,6 @@ const MarketPrices = () => {
             ? historyResponse.value.data
             : [],
         );
-      } else {
-        setPriceHistory([]);
       }
 
       if (compareResponse.status === "fulfilled") {
@@ -345,156 +344,125 @@ const MarketPrices = () => {
             ? compareResponse.value.data
             : [],
         );
-      } else {
-        setComparison([]);
       }
-    } catch {
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to load market prices.",
+      );
+      setPrices([]);
       setPriceHistory([]);
       setComparison([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        const [profileResponse, cropsResponse] = await Promise.all([
-          farmerService.getProfile().catch(() => null),
-          cropService.getCrops().catch(() => []),
-        ]);
+  const loadMarketInsights = async () => {
+    setInsightLoading(true);
 
-        const profile = profileResponse?.data || null;
-        const cropList = Array.isArray(cropsResponse?.data)
-          ? cropsResponse.data
-          : [];
-        const profileCropName = cropList[0]?.cropName || "";
-        const defaultCropName = profileCropName || "";
-        const defaultState = profile?.state || "";
-        const defaultDistrict = profile?.district || "";
-
-        setFarmerProfile(profile);
-        setMyCrops(cropList);
-
-        const nextFilters = {
-          cropName: defaultCropName,
-          state: defaultState,
-          district: defaultDistrict,
-        };
-
-        setFilters(nextFilters);
-        if (defaultCropName) {
-          await loadPrices(nextFilters);
-          await loadMarketDetails(
-            defaultCropName,
-            defaultState,
-            defaultDistrict,
-          );
-        } else {
-          await loadPrices({
-            cropName: undefined,
-            state: undefined,
-            district: undefined,
-          });
-          await loadMarketDetails(undefined, undefined, undefined);
-        }
-
-        await loadMarketInsights();
-      } catch {
-        setError("Unable to load market context right now.");
-        setLoading(false);
-      }
-    };
-
-    initialize();
-  }, []);
-
-  const handleFilterChange = (event) => {
-    const { name, value } = event.target;
-    setFilters((current) => ({ ...current, [name]: value }));
+    try {
+      const { data } = await marketAdviceService.getMarketAdvice();
+      setMarketAdvice(Array.isArray(data) ? data : []);
+    } catch {
+      setMarketAdvice([]);
+    } finally {
+      setInsightLoading(false);
+    }
   };
 
-  const handleApplyFilters = async (event) => {
-    event.preventDefault();
-    const nextFilters = {
-      cropName: filters.cropName?.trim() || undefined,
-      state: filters.state?.trim() || undefined,
-      district: filters.district?.trim() || undefined,
-    };
-    await loadPrices(nextFilters);
-    await loadMarketDetails(
-      nextFilters.cropName,
-      nextFilters.state,
-      nextFilters.district,
+  const handleCropSelect = (cropName) => {
+    setSelectedCrop(cropName);
+    setFilters({
+      cropName,
+      state: farmerProfile?.state || "",
+      district: farmerProfile?.district || "",
+    });
+    loadPricesForCrop(
+      cropName,
+      farmerProfile?.state || "",
+      farmerProfile?.district || "",
     );
   };
 
-  const clearFilters = async () => {
-    const reset = { cropName: "", state: "", district: "" };
-    setFilters(reset);
-    await loadPrices({});
-    await loadMarketDetails(undefined, undefined, undefined);
+  const handleApplyFilters = async (e) => {
+    e.preventDefault();
+    const nextFilters = {
+      cropName: filters.cropName?.trim() || "",
+      state: filters.state?.trim() || "",
+      district: filters.district?.trim() || "",
+    };
+    if (nextFilters.cropName) {
+      setSelectedCrop(nextFilters.cropName);
+      await loadPricesForCrop(
+        nextFilters.cropName,
+        nextFilters.state,
+        nextFilters.district,
+      );
+    }
   };
 
-  const groupedPrices = useMemo(() => groupPricesByCrop(prices), [prices]);
+  // Calculate price summary
+  const priceSummary = useMemo(() => {
+    const validPrices = prices
+      .map((p) => Number(p.modalPrice))
+      .filter(isValidMarketPrice);
 
-  const summary = useMemo(() => {
-    const modalValues = prices
-      .map((item) => Number(item.modalPrice))
-      .filter((value) => isValidMarketPrice(value));
-
-    if (!modalValues.length) {
-      return { highest: "—", lowest: "—", average: "—" };
+    if (!validPrices.length) {
+      return {
+        best: null,
+        lowest: null,
+        areaPrice: null,
+      };
     }
 
-    const highest = Math.max(...modalValues);
-    const lowest = Math.min(...modalValues);
-    const average =
-      modalValues.reduce((sum, value) => sum + value, 0) / modalValues.length;
+    const best = Math.max(...validPrices);
+    const lowest = Math.min(...validPrices);
 
-    return { highest, lowest, average };
-  }, [prices]);
+    // Find area price (district/state match)
+    const areaPriceEntry = prices.find(
+      (p) =>
+        (p.district === farmerProfile?.district ||
+          p.state === farmerProfile?.state) &&
+        isValidMarketPrice(p.modalPrice),
+    );
+    const areaPrice = areaPriceEntry ? Number(areaPriceEntry.modalPrice) : null;
 
-  const hasTrendData = priceHistory.length > 0;
-  const hasComparisonData = comparison.length > 0;
+    return { best, lowest, areaPrice };
+  }, [prices, farmerProfile]);
 
-  if (loading) {
+  if (loading && !myCrops.length) {
     return (
       <div className="min-h-screen bg-emerald-50 px-4 py-6">
-        <div className="mx-auto max-w-7xl space-y-4">
-          <div className="animate-pulse rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-            <div className="h-6 w-40 rounded bg-slate-100" />
-            <div className="mt-4 h-10 w-72 rounded bg-slate-100" />
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {[0, 1, 2].map((item) => (
-              <div
-                key={item}
-                className="animate-pulse rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100"
-              >
-                <div className="h-4 w-20 rounded bg-slate-100" />
-                <div className="mt-4 h-8 w-28 rounded bg-slate-100" />
-              </div>
-            ))}
+        <div className="mx-auto max-w-6xl space-y-4">
+          <div className="animate-pulse space-y-4">
+            <div className="h-48 rounded-3xl bg-white" />
+            <div className="grid gap-4 md:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-32 rounded-2xl bg-white" />
+              ))}
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (!myCrops.length) {
     return (
       <div className="min-h-screen bg-emerald-50 px-4 py-6">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
-          <p className="text-lg font-semibold text-slate-900">
-            Unable to load market prices
-          </p>
-          <p className="mt-2 text-sm text-slate-600">{error}</p>
-          <button
-            type="button"
-            onClick={() => loadPrices()}
-            className="mt-5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700"
-          >
-            {labels.retry}
-          </button>
+        <div className="mx-auto max-w-3xl space-y-6">
+          <section className="rounded-3xl bg-gradient-to-r from-violet-600 to-indigo-500 p-6 text-white shadow-lg">
+            <h1 className="text-3xl font-bold">{labels.marketDashboard}</h1>
+            <p className="mt-2 text-sm text-violet-50">{labels.subtitle}</p>
+          </section>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+            <p className="text-lg font-semibold text-slate-900">
+              {labels.noCrops}
+            </p>
+            <p className="mt-2 text-sm text-slate-600">{labels.noCropsHint}</p>
+          </div>
         </div>
       </div>
     );
@@ -502,56 +470,46 @@ const MarketPrices = () => {
 
   return (
     <div className="min-h-screen bg-emerald-50 px-4 py-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-3xl bg-gradient-to-r from-violet-600 to-indigo-500 p-6 text-white shadow-lg shadow-violet-100">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-violet-100">
-            {labels.marketPrices}
+      <div className="mx-auto max-w-6xl space-y-6">
+        {/* Header */}
+        <section className="rounded-3xl bg-gradient-to-r from-violet-600 to-indigo-500 p-6 text-white shadow-lg">
+          <p className="text-sm font-medium uppercase tracking-widest text-violet-100">
+            Market
           </p>
-          <h1 className="mt-2 text-3xl font-bold">{labels.cropOverview}</h1>
+          <h1 className="mt-2 text-3xl font-bold">{labels.marketDashboard}</h1>
           <p className="mt-2 text-sm text-violet-50">{labels.subtitle}</p>
-          <div className="mt-4 inline-flex rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-medium text-violet-50 backdrop-blur-sm">
-            {labels.disclaimer}
-          </div>
         </section>
 
+        {/* My Crops Section */}
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="mb-4 flex flex-col gap-3">
             <div>
-              <p className="text-sm font-semibold text-slate-900">
+              <p className="text-lg font-semibold text-slate-900">
                 {labels.myCrops}
               </p>
-              {farmerProfile ? (
+              {farmerProfile && (
                 <p className="text-xs text-slate-500">
                   {labels.farmLocation}: {farmerProfile.district || "—"},{" "}
                   {farmerProfile.state || "—"}
                 </p>
-              ) : null}
+              )}
             </div>
-            {myCrops.length ? (
-              <div className="flex flex-wrap gap-2">
-                {myCrops.slice(0, 5).map((crop) => (
-                  <button
-                    key={crop.id || crop.cropName}
-                    type="button"
-                    onClick={() =>
-                      setFilters((current) => ({
-                        ...current,
-                        cropName: crop.cropName || "",
-                      }))
-                    }
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                      filters.cropName === crop.cropName
-                        ? "bg-emerald-600 text-white"
-                        : "bg-emerald-50 text-emerald-700"
-                    }`}
-                  >
-                    {crop.cropName}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500">{labels.noCrops}</p>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {myCrops.map((crop) => (
+                <button
+                  key={crop.id || crop.cropName}
+                  type="button"
+                  onClick={() => handleCropSelect(crop.cropName || "")}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    selectedCrop === crop.cropName
+                      ? "bg-emerald-600 text-white"
+                      : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  }`}
+                >
+                  {crop.cropName}
+                </button>
+              ))}
+            </div>
           </div>
 
           <form
@@ -560,295 +518,276 @@ const MarketPrices = () => {
           >
             <input
               type="text"
-              name="cropName"
               value={filters.cropName}
-              onChange={handleFilterChange}
+              onChange={(e) =>
+                setFilters((current) => ({
+                  ...current,
+                  cropName: e.target.value,
+                }))
+              }
               placeholder={labels.cropName}
-              className="rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="rounded-xl border border-slate-300 px-3 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             />
             <input
               type="text"
-              name="state"
               value={filters.state}
-              onChange={handleFilterChange}
+              onChange={(e) =>
+                setFilters((current) => ({
+                  ...current,
+                  state: e.target.value,
+                }))
+              }
               placeholder={labels.state}
-              className="rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="rounded-xl border border-slate-300 px-3 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             />
             <input
               type="text"
-              name="district"
               value={filters.district}
-              onChange={handleFilterChange}
+              onChange={(e) =>
+                setFilters((current) => ({
+                  ...current,
+                  district: e.target.value,
+                }))
+              }
               placeholder={labels.district}
-              className="rounded-xl border border-slate-300 px-3 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="rounded-xl border border-slate-300 px-3 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             />
             <div className="flex gap-2">
               <button
                 type="submit"
                 className="flex-1 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white hover:bg-violet-700"
               >
-                {labels.apply}
+                {labels.applyFilters}
               </button>
               <button
                 type="button"
-                onClick={clearFilters}
+                onClick={() => {
+                  setFilters({
+                    cropName: selectedCrop,
+                    state: farmerProfile?.state || "",
+                    district: farmerProfile?.district || "",
+                  });
+                  loadPricesForCrop(
+                    selectedCrop,
+                    farmerProfile?.state || "",
+                    farmerProfile?.district || "",
+                  );
+                }}
                 className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                {labels.clear}
+                {labels.clearFilters}
               </button>
             </div>
           </form>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-            <p className="text-sm text-slate-500">{labels.highest}</p>
-            <p className="mt-3 text-3xl font-bold text-slate-900">
-              {summary.highest !== "—"
-                ? currencyFormatter.format(summary.highest)
-                : "—"}
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-            <p className="text-sm text-slate-500">{labels.lowest}</p>
-            <p className="mt-3 text-3xl font-bold text-slate-900">
-              {summary.lowest !== "—"
-                ? currencyFormatter.format(summary.lowest)
-                : "—"}
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-            <p className="text-sm text-slate-500">{labels.average}</p>
-            <p className="mt-3 text-3xl font-bold text-slate-900">
-              {summary.average !== "—"
-                ? currencyFormatter.format(summary.average)
-                : "—"}
-            </p>
-          </div>
-        </section>
+        {/* Error State */}
+        {error && (
+          <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+            <p className="text-lg font-semibold text-red-700">{error}</p>
+            <button
+              onClick={() =>
+                loadPricesForCrop(selectedCrop, filters.state, filters.district)
+              }
+              className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+            >
+              {labels.retry}
+            </button>
+          </section>
+        )}
 
-        <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-lg font-bold text-slate-900">
-                {labels.aiInsight}
-              </p>
-              <p className="text-xs text-slate-500">{labels.aiGenerated}</p>
-            </div>
-            {insightLoading ? (
-              <span className="text-xs text-slate-500">{labels.loading}</span>
-            ) : null}
-          </div>
+        {/* Price Summary Cards */}
+        {!error && !loading && (
+          <>
+            <section className="grid gap-4 md:grid-cols-3">
+              {/* Best Price */}
+              <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {labels.bestPrice}
+                </p>
+                <p className="mt-4 text-3xl font-bold text-emerald-700">
+                  {priceSummary.best
+                    ? currencyFormatter.format(priceSummary.best)
+                    : labels.notAvailable}
+                </p>
+                {priceSummary.best && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {labels.priceUnit}
+                  </p>
+                )}
+              </div>
 
-          {insightError ? (
-            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              {insightError}
-              <button
-                type="button"
-                onClick={loadMarketInsights}
-                className="ml-3 font-semibold underline"
-              >
-                {labels.retry}
-              </button>
-            </div>
-          ) : marketAdvice.length ? (
-            <div className="mt-4 space-y-4">
-              {marketAdvice.map((item) => (
-                <article
-                  key={`${item.crop}-${item.summary}`}
-                  className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-lg font-semibold text-slate-900">
-                      {item.crop || "Crop"}
+              {/* Lowest Price */}
+              <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {labels.lowestPrice}
+                </p>
+                <p className="mt-4 text-3xl font-bold text-amber-700">
+                  {priceSummary.lowest
+                    ? currencyFormatter.format(priceSummary.lowest)
+                    : labels.notAvailable}
+                </p>
+                {priceSummary.lowest && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {labels.priceUnit}
+                  </p>
+                )}
+              </div>
+
+              {/* Your Area Price */}
+              <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {labels.yourAreaPrice}
+                </p>
+                <p className="mt-4 text-3xl font-bold text-slate-900">
+                  {priceSummary.areaPrice
+                    ? currencyFormatter.format(priceSummary.areaPrice)
+                    : labels.notAvailable}
+                </p>
+                {priceSummary.areaPrice && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {labels.priceUnit}
+                  </p>
+                )}
+              </div>
+            </section>
+
+            {/* AI Insight */}
+            <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-lg font-bold text-slate-900">
+                    {labels.aiInsight}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {labels.aiDisclaimerShort}
+                  </p>
+                </div>
+                {insightLoading && (
+                  <span className="text-xs text-slate-500">
+                    {labels.loadingInsight}
+                  </span>
+                )}
+              </div>
+
+              {marketAdvice.length ? (
+                <div className="mt-4 space-y-4">
+                  {marketAdvice.map((item, idx) => (
+                    <article
+                      key={idx}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                      <p className="font-semibold text-slate-900">
+                        {item.crop || selectedCrop}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-700">
+                        {item.summary}
+                      </p>
+                      {item.trend && (
+                        <p className="mt-2 text-sm text-slate-600">
+                          <span className="font-medium">
+                            {labels.priceTrend}:
+                          </span>{" "}
+                          {item.trend}
+                        </p>
+                      )}
+                      <p className="mt-2 text-xs text-amber-600">
+                        {labels.aiDisclaimer}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  {labels.noInsight}
+                </div>
+              )}
+            </section>
+
+            {/* Price Trend & Comparison */}
+            {(priceHistory.length > 0 || comparison.length > 0) && (
+              <section className="grid gap-4 xl:grid-cols-2">
+                {priceHistory.length > 0 && (
+                  <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+                    <p className="text-lg font-bold text-slate-900">
+                      {labels.priceTrend}
                     </p>
-                    <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                      {labels.aiGenerated}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm text-slate-700">{item.summary}</p>
-                  <p className="mt-3 text-sm text-slate-700">
-                    <span className="font-semibold">{labels.trend}:</span>{" "}
-                    {item.trend}
-                  </p>
-                  <p className="mt-2 text-sm text-slate-700">
-                    <span className="font-semibold">{labels.apply}:</span>{" "}
-                    {item.advice}
-                  </p>
-                  <p className="mt-2 text-sm text-amber-700">
-                    <span className="font-semibold">Caution:</span>{" "}
-                    {item.caution}
-                  </p>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-              {labels.noInsight}
-            </div>
-          )}
-        </section>
-
-        {hasTrendData || hasComparisonData ? (
-          <section className="grid gap-4 xl:grid-cols-2">
-            {hasTrendData ? (
-              <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-                <p className="text-lg font-bold text-slate-900">
-                  {labels.trend}
-                </p>
-                <div className="mt-4 space-y-3">
-                  {priceHistory.slice(0, 5).map((item, index) => (
-                    <div
-                      key={`${item.market || "market"}-${item.arrivalDate || index}`}
-                      className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"
-                    >
-                      <span>{formatDate(item.arrivalDate)}</span>
-                      <span className="font-semibold text-slate-900">
-                        {currencyFormatter.format(item.modalPrice)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {hasComparisonData ? (
-              <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-                <p className="text-lg font-bold text-slate-900">
-                  {labels.compare}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {labels.compareHint}
-                </p>
-                <div className="mt-4 space-y-3">
-                  {comparison.slice(0, 5).map((item, index) => (
-                    <div
-                      key={`${item.market || "compare"}-${item.district || "district"}-${index}`}
-                      className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"
-                    >
-                      <div>
-                        <p className="font-semibold text-slate-900">
-                          {item.market || "Market"}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {item.district || "District"}, {item.state || "State"}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-slate-900">
-                          {currencyFormatter.format(item.modalPrice)}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {item.unit || "quintal"}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-
-        {groupedPrices.length === 0 ? (
-          <section className="rounded-3xl border border-dashed border-slate-200 bg-white p-8 text-center shadow-sm">
-            <p className="text-xl font-semibold text-slate-900">
-              {labels.noPrices}
-            </p>
-            <p className="mt-2 text-sm text-slate-600">{labels.noPricesHint}</p>
-          </section>
-        ) : (
-          <section className="space-y-4">
-            {groupedPrices.map(({ cropName, prices: cropPrices }) => {
-              const bestPrice = cropPrices.reduce((best, current) => {
-                if (!best) return current;
-                return Number(current.modalPrice) > Number(best.modalPrice)
-                  ? current
-                  : best;
-              }, null);
-
-              return (
-                <article
-                  key={cropName}
-                  className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100"
-                >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <p className="text-xl font-bold text-slate-900">
-                        {cropName}
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        {labels.topRealPrices}
-                      </p>
-                    </div>
-                    <div className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-violet-700">
-                      {cropPrices[0]?.unit || "quintal"}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    {cropPrices.map((price, index) => {
-                      const isBestAvailable =
-                        bestPrice &&
-                        `${price.market || "market"}-${price.district || "district"}-${price.state || "state"}-${price.arrivalDate || index}` ===
-                          `${bestPrice.market || "market"}-${bestPrice.district || "district"}-${bestPrice.state || "state"}-${bestPrice.arrivalDate || index}`;
-
-                      return (
+                    <div className="mt-4 space-y-3">
+                      {priceHistory.slice(0, 5).map((item, idx) => (
                         <div
-                          key={`${cropName}-${price.id || index}-${price.market || "market"}`}
-                          className={`rounded-2xl p-4 ${
-                            isBestAvailable
-                              ? "border-2 border-emerald-300 bg-emerald-50 shadow-sm"
-                              : "bg-slate-50"
-                          }`}
+                          key={idx}
+                          className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm"
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs uppercase tracking-wide text-slate-500">
-                              {price.market || "Market"}
-                            </p>
-                            {isBestAvailable ? (
-                              <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                                {labels.bestAvailable}
-                              </span>
-                            ) : null}
-                          </div>
-                          <p className="mt-2 text-xl font-bold text-slate-900">
-                            {isValidMarketPrice(price.modalPrice)
-                              ? currencyFormatter.format(price.modalPrice)
-                              : "—"}
-                          </p>
-                          <p className="mt-2 text-xs text-slate-600">
-                            {labels.location}: {price.district || "District"} •{" "}
-                            {price.state || "State"}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {labels.unit}: {price.unit || "quintal"}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {labels.date}: {formatDate(price.arrivalDate)}
-                          </p>
-                          {(price.variety || price.grade) && (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {price.variety && (
-                                <span className="rounded-full bg-white px-2 py-1 text-[10px] text-slate-700 ring-1 ring-slate-200">
-                                  {price.variety}
-                                </span>
-                              )}
-                              {price.grade && (
-                                <span className="rounded-full bg-white px-2 py-1 text-[10px] text-slate-700 ring-1 ring-slate-200">
-                                  {price.grade}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                          <span className="text-slate-600">
+                            {formatDate(item.arrivalDate)}
+                          </span>
+                          <span className="font-semibold text-slate-900">
+                            {currencyFormatter.format(item.modalPrice)}
+                          </span>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                </article>
-              );
-            })}
-          </section>
+                )}
+
+                {comparison.length > 0 && (
+                  <div className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+                    <p className="text-lg font-bold text-slate-900">
+                      {labels.marketComparison}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {labels.compareHint}
+                    </p>
+                    <div className="mt-4 space-y-3">
+                      {comparison.slice(0, 5).map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm"
+                        >
+                          <div>
+                            <p className="font-semibold text-slate-900">
+                              {item.market || "Market"}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {item.district}, {item.state}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-slate-900">
+                              {currencyFormatter.format(item.modalPrice)}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {item.unit}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* No Data Message */}
+            {prices.length === 0 && (
+              <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+                <p className="text-lg font-semibold text-slate-900">
+                  {selectedCrop ? labels.noPricesForCrop : labels.noPrices}
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  {labels.noPricesHint}
+                </p>
+              </section>
+            )}
+
+            {/* Data Source Disclaimer */}
+            <div className="rounded-2xl bg-blue-50 p-4 text-xs text-slate-600 ring-1 ring-blue-100">
+              <p>
+                <span className="font-medium text-slate-900">Data Source:</span>{" "}
+                {labels.dataSource}
+              </p>
+            </div>
+          </>
         )}
       </div>
     </div>

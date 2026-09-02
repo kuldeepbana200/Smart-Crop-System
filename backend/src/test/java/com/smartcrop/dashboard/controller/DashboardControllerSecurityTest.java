@@ -39,120 +39,121 @@ import java.util.List;
 @SpringJUnitWebConfig(classes = DashboardControllerSecurityTest.TestConfiguration.class)
 class DashboardControllerSecurityTest {
 
-    @Autowired
-    private WebApplicationContext webApplicationContext;
+        @Autowired
+        private WebApplicationContext webApplicationContext;
 
-    @Autowired
-    private DashboardService dashboardService;
+        @Autowired
+        private DashboardService dashboardService;
 
-    private MockMvc mockMvc;
+        private MockMvc mockMvc;
 
-    @BeforeEach
-    void setUp() {
+        @BeforeEach
+        void setUp() {
 
-        mockMvc = webAppContextSetup(webApplicationContext)
-                .apply(springSecurity())
-                .build();
+                mockMvc = webAppContextSetup(webApplicationContext)
+                                .apply(springSecurity())
+                                .build();
 
-        when(dashboardService.getDashboard(
-                org.mockito.ArgumentMatchers.any()))
-                .thenReturn(
-                        new DashboardResponse(
-                                null,
-                                null,
-                                List.of(),
-                                List.of(),
-                                List.of(),
-                                List.of(),
-                                List.of()));
-    }
-
-    @Test
-    void authenticatedFarmerCanAccessDashboard() throws Exception {
-
-        mockMvc.perform(
-                get("/api/dashboard")
-                        .with(user("farmer@example.com")
-                                .roles("FARMER")))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void officerCannotAccessFarmerDashboard() throws Exception {
-
-        mockMvc.perform(
-                get("/api/dashboard")
-                        .with(user("officer@example.com")
-                                .roles("OFFICER")))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void unauthenticatedUserIsRejected() throws Exception {
-
-        mockMvc.perform(
-                get("/api/dashboard"))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    @EnableWebMvc
-    @EnableWebSecurity
-    @EnableMethodSecurity
-    static class TestConfiguration {
-
-        @Bean
-        DashboardController dashboardController(
-                DashboardService service) {
-
-            return new DashboardController(service);
+                when(dashboardService.getDashboard(
+                                org.mockito.ArgumentMatchers.any()))
+                                .thenReturn(
+                                                new DashboardResponse(
+                                                                null,
+                                                                null,
+                                                                List.of(),
+                                                                List.of(),
+                                                                List.of(),
+                                                                List.of(),
+                                                                List.of(),
+                                                                null));
         }
 
-        @Bean
-        DashboardExceptionHandler dashboardExceptionHandler() {
+        @Test
+        void authenticatedFarmerCanAccessDashboard() throws Exception {
 
-            return new DashboardExceptionHandler();
+                mockMvc.perform(
+                                get("/api/dashboard")
+                                                .with(user("farmer@example.com")
+                                                                .roles("FARMER")))
+                                .andExpect(status().isOk());
         }
 
-        @Bean
-        DashboardService dashboardService() {
+        @Test
+        void officerCannotAccessFarmerDashboard() throws Exception {
 
-            return mock(DashboardService.class);
+                mockMvc.perform(
+                                get("/api/dashboard")
+                                                .with(user("officer@example.com")
+                                                                .roles("OFFICER")))
+                                .andExpect(status().isForbidden());
         }
 
-        @Bean
-        JwtAuthenticationFilter jwtAuthenticationFilter() {
+        @Test
+        void unauthenticatedUserIsRejected() throws Exception {
 
-            return new JwtAuthenticationFilter(
-                    new JwtService(
-                            "local-development-secret-that-is-at-least-32-chars",
-                            86_400_000),
-                    mock(CustomUserDetailsService.class));
+                mockMvc.perform(
+                                get("/api/dashboard"))
+                                .andExpect(status().isUnauthorized());
         }
 
-        @Bean
-        SecurityFilterChain securityFilterChain(
-                HttpSecurity http,
-                JwtAuthenticationFilter jwtAuthenticationFilter)
-                throws Exception {
+        @Configuration(proxyBeanMethods = false)
+        @EnableWebMvc
+        @EnableWebSecurity
+        @EnableMethodSecurity
+        static class TestConfiguration {
 
-            return http
-                    .csrf(csrf -> csrf.disable())
+                @Bean
+                DashboardController dashboardController(
+                                DashboardService service) {
 
-                    .sessionManagement(session -> session.sessionCreationPolicy(
-                            SessionCreationPolicy.STATELESS))
+                        return new DashboardController(service);
+                }
 
-                    .exceptionHandling(exception -> exception.authenticationEntryPoint(
-                            new HttpStatusEntryPoint(
-                                    HttpStatus.UNAUTHORIZED)))
+                @Bean
+                DashboardExceptionHandler dashboardExceptionHandler() {
 
-                    .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
+                        return new DashboardExceptionHandler();
+                }
 
-                    .addFilterBefore(
-                            jwtAuthenticationFilter,
-                            org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+                @Bean
+                DashboardService dashboardService() {
 
-                    .build();
+                        return mock(DashboardService.class);
+                }
+
+                @Bean
+                JwtAuthenticationFilter jwtAuthenticationFilter() {
+
+                        return new JwtAuthenticationFilter(
+                                        new JwtService(
+                                                        "local-development-secret-that-is-at-least-32-chars",
+                                                        86_400_000),
+                                        mock(CustomUserDetailsService.class));
+                }
+
+                @Bean
+                SecurityFilterChain securityFilterChain(
+                                HttpSecurity http,
+                                JwtAuthenticationFilter jwtAuthenticationFilter)
+                                throws Exception {
+
+                        return http
+                                        .csrf(csrf -> csrf.disable())
+
+                                        .sessionManagement(session -> session.sessionCreationPolicy(
+                                                        SessionCreationPolicy.STATELESS))
+
+                                        .exceptionHandling(exception -> exception.authenticationEntryPoint(
+                                                        new HttpStatusEntryPoint(
+                                                                        HttpStatus.UNAUTHORIZED)))
+
+                                        .authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated())
+
+                                        .addFilterBefore(
+                                                        jwtAuthenticationFilter,
+                                                        org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+
+                                        .build();
+                }
         }
-    }
 }

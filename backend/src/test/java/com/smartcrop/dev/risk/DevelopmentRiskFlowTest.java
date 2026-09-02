@@ -55,7 +55,8 @@ class DevelopmentRiskFlowTest {
         when(cropRepository.findByIdAndFarmerId(30L, 20L)).thenReturn(Optional.of(crop));
         when(alertRepository.findByFarmerIdAndCropIdAndConditionKeyAndStatus(
                 20L, 30L, "EXTREME_HEAT|HEAVY_RAINFALL", AlertStatus.OPEN))
-                .thenReturn(Optional.empty(), Optional.of(new DistressAlert()));
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(new DistressAlert()));
         when(alertRepository.findByFarmerIdAndCropIdAndConditionKeyAndStatus(
                 20L, 30L, "EXTREME_HEAT|HEAVY_RAINFALL", AlertStatus.ACKNOWLEDGED))
                 .thenReturn(Optional.empty());

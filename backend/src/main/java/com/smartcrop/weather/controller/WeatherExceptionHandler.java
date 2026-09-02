@@ -24,7 +24,7 @@ public class WeatherExceptionHandler {
 
     @ExceptionHandler(FarmerCoordinatesMissingException.class)
     public ResponseEntity<Map<String, Object>> handleMissingCoordinates() {
-        return error(HttpStatus.UNPROCESSABLE_ENTITY, "Farmer coordinates are not configured");
+        return error(HttpStatus.BAD_REQUEST, "Farmer coordinates are not configured");
     }
 
     @ExceptionHandler(InvalidCoordinatesException.class)

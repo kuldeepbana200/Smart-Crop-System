@@ -60,7 +60,6 @@ public class AiController {
     private final FarmerRepository farmerRepository;
     private final CropRepository cropRepository;
     private final WeatherService weatherService;
-    private final RiskService riskService;
     private final DistressAlertService distressAlertService;
     private final MarketService marketService;
     private final YouTubeService youTubeService;
@@ -71,7 +70,6 @@ public class AiController {
             FarmerRepository farmerRepository,
             CropRepository cropRepository,
             WeatherService weatherService,
-            RiskService riskService,
             DistressAlertService distressAlertService,
             MarketService marketService,
             YouTubeService youTubeService) {
@@ -80,7 +78,6 @@ public class AiController {
         this.farmerRepository = farmerRepository;
         this.cropRepository = cropRepository;
         this.weatherService = weatherService;
-        this.riskService = riskService;
         this.distressAlertService = distressAlertService;
         this.marketService = marketService;
         this.youTubeService = youTubeService;
@@ -358,6 +355,7 @@ public class AiController {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private String buildMarketAdvicePrompt(
             User user,
             Farmer farmer,

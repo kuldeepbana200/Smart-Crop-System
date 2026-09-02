@@ -17,11 +17,11 @@ public class DashboardExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleFarmerProfileNotFound() {
 
         return ResponseEntity
-                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .status(HttpStatus.NOT_FOUND)
                 .body(Map.of(
                         "timestamp", Instant.now(),
-                        "status", HttpStatus.UNPROCESSABLE_ENTITY.value(),
-                        "error", HttpStatus.UNPROCESSABLE_ENTITY.getReasonPhrase(),
+                        "status", HttpStatus.NOT_FOUND.value(),
+                        "error", HttpStatus.NOT_FOUND.getReasonPhrase(),
                         "message", "Farmer profile not found"));
     }
 }

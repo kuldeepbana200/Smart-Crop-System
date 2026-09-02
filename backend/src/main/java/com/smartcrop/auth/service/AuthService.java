@@ -10,9 +10,9 @@ import com.smartcrop.auth.repository.OTPVerificationTokenRepository;
 import com.smartcrop.auth.repository.UserRepository;
 import com.smartcrop.farmer.entity.Farmer;
 import com.smartcrop.farmer.repository.FarmerRepository;
-import com.smartcrop.auth.service.JwtService;
+
 import java.time.LocalDateTime;
-import java.util.Optional;
+
 import java.util.Random;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
@@ -89,7 +89,7 @@ public class AuthService {
         }
 
         // Generate and send OTP for phone verification
-        String otp = generateAndSendOTP(savedUser);
+        generateAndSendOTP(savedUser);
 
         return createAuthenticationResponse(savedUser);
     }
@@ -284,7 +284,7 @@ public class AuthService {
         }
 
         // Generate new OTP and send it
-        String otp = generateAndSendOTP(user);
+        generateAndSendOTP(user);
 
         return true;
     }

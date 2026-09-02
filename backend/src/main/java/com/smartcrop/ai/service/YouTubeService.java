@@ -28,9 +28,12 @@ public class YouTubeService {
     private static final Logger log = LoggerFactory.getLogger(YouTubeService.class);
     private static final String YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
     private static final int MAX_RESULTS_PER_QUERY = 3;
-    private static final String AGRICULTURAL_INSTITUTION_PREFIX = "(icar|kvk|krishi|agriculture university|agricultural university|government agriculture|department of agriculture|aicrp|agri science|farm science|agricultural research|agriculture department|agricultural extension)";
-    private static final Pattern PRODUCT_PROMO_PATTERN = Pattern.compile("(buy now|shop now|order now|limited offer|discount|fertilizer|pesticide|weedicide|insecticide|brand|dealer|supplier|agri input|agri products|agri company)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern TRUSTED_SOURCE_PATTERN = Pattern.compile("(icar|kvk|krishi vigyan kendra|agricultural university|india agriculture|agriculture department|department of agriculture|farm science|agricultural research|extension|agri university)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PRODUCT_PROMO_PATTERN = Pattern.compile(
+            "(buy now|shop now|order now|limited offer|discount|fertilizer|pesticide|weedicide|insecticide|brand|dealer|supplier|agri input|agri products|agri company)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern TRUSTED_SOURCE_PATTERN = Pattern.compile(
+            "(icar|kvk|krishi vigyan kendra|agricultural university|india agriculture|agriculture department|department of agriculture|farm science|agricultural research|extension|agri university)",
+            Pattern.CASE_INSENSITIVE);
 
     private final String youTubeApiKey;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -159,7 +162,8 @@ public class YouTubeService {
     }
 
     private boolean isCredibleAgricultureVideo(String title, String description, String channelTitle) {
-        String combined = (title == null ? "" : title) + " " + (description == null ? "" : description) + " " + (channelTitle == null ? "" : channelTitle);
+        String combined = (title == null ? "" : title) + " " + (description == null ? "" : description) + " "
+                + (channelTitle == null ? "" : channelTitle);
         if (combined == null || combined.isBlank()) {
             return false;
         }
@@ -168,7 +172,8 @@ public class YouTubeService {
 
         boolean trustedSource = TRUSTED_SOURCE_PATTERN.matcher(normalized).find();
         boolean productPromotion = PRODUCT_PROMO_PATTERN.matcher(normalized).find();
-        boolean suspiciousBrandText = normalized.contains("buy") && (normalized.contains("fertilizer") || normalized.contains("pesticide") || normalized.contains("seed"));
+        boolean suspiciousBrandText = normalized.contains("buy") && (normalized.contains("fertilizer")
+                || normalized.contains("pesticide") || normalized.contains("seed"));
 
         if (productPromotion && !trustedSource) {
             return false;
@@ -178,6 +183,7 @@ public class YouTubeService {
             return false;
         }
 
-        return trustedSource || !(normalized.contains("promotion") || normalized.contains("offer") || normalized.contains("discount") || normalized.contains("dealer") || normalized.contains("supplier"));
+        return trustedSource || !(normalized.contains("promotion") || normalized.contains("offer")
+                || normalized.contains("discount") || normalized.contains("dealer") || normalized.contains("supplier"));
     }
 }

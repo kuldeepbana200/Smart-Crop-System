@@ -1,6 +1,5 @@
 package com.smartcrop.advisory.controller;
 
-import com.smartcrop.advisory.service.AdvisoryRuleEngine.InvalidWeatherDataException;
 import com.smartcrop.advisory.service.AdvisoryService.CropNotFoundException;
 import com.smartcrop.advisory.service.AdvisoryService.FarmerProfileNotFoundException;
 import com.smartcrop.advisory.service.AdvisoryService.AdvisoryNotFoundException;
@@ -38,7 +37,7 @@ public class AdvisoryExceptionHandler {
 
     @ExceptionHandler(FarmerCoordinatesMissingException.class)
     public ResponseEntity<Map<String, Object>> handleMissingCoordinates() {
-        return error(HttpStatus.UNPROCESSABLE_ENTITY, "Farmer coordinates are not configured");
+        return error(HttpStatus.BAD_REQUEST, "Farmer coordinates are not configured");
     }
 
     @ExceptionHandler(InvalidCoordinatesException.class)
@@ -65,7 +64,7 @@ public class AdvisoryExceptionHandler {
         return error(HttpStatus.SERVICE_UNAVAILABLE, "Weather provider is unavailable");
     }
 
-    @ExceptionHandler({ MalformedWeatherResponseException.class, InvalidWeatherDataException.class })
+    @ExceptionHandler(MalformedWeatherResponseException.class)
     public ResponseEntity<Map<String, Object>> handleMalformedWeather() {
         return error(HttpStatus.BAD_GATEWAY, "Weather provider returned an invalid response");
     }

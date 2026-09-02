@@ -1,7 +1,7 @@
 package com.smartcrop.risk.engine;
 
 import com.smartcrop.crop.entity.Crop;
-import com.smartcrop.risk.dto.RiskAssessmentResponse;
+
 import com.smartcrop.risk.dto.RiskFactor;
 import com.smartcrop.weather.dto.WeatherForecastResponse;
 import org.springframework.stereotype.Component;
@@ -21,6 +21,7 @@ public class RiskEngine {
             "FRUITING", 1.20,
             "MATURITY", 1.15);
 
+    @SuppressWarnings("unchecked")
     public RiskResult assess(Crop crop, WeatherForecastResponse weather) {
         WeatherForecastResponse.DailyForecast daily = weather.daily();
         double precipitation = first(daily.precipitationSum());

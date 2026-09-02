@@ -16,6 +16,9 @@ import com.smartcrop.market.dto.MarketPriceResponse;
 import com.smartcrop.market.service.MarketService;
 import com.smartcrop.notification.entity.NotificationStatus;
 import com.smartcrop.notification.repository.NotificationRepository;
+import com.smartcrop.weather.dto.WeatherForecastResponse;
+import com.smartcrop.weather.client.OpenMeteoClient;
+import com.smartcrop.weather.service.WeatherService;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -38,6 +41,7 @@ public class DashboardService {
         private final NotificationRepository notificationRepository;
         private final AdvisoryRepository advisoryRepository;
         private final MarketService marketService;
+        private final WeatherService weatherService;
 
         public DashboardService(
                         UserRepository userRepository,
@@ -47,7 +51,8 @@ public class DashboardService {
                         InterventionRepository interventionRepository,
                         NotificationRepository notificationRepository,
                         AdvisoryRepository advisoryRepository,
-                        MarketService marketService) {
+                        MarketService marketService,
+                        WeatherService weatherService) {
 
                 this.userRepository = userRepository;
                 this.farmerRepository = farmerRepository;
@@ -57,6 +62,7 @@ public class DashboardService {
                 this.notificationRepository = notificationRepository;
                 this.advisoryRepository = advisoryRepository;
                 this.marketService = marketService;
+                this.weatherService = weatherService;
         }
 
         @Transactional(readOnly = true)
@@ -132,6 +138,7 @@ public class DashboardService {
                                 .toList();
 
                 List<DashboardResponse.MarketSummary> marketSummaries = marketSummaries(farmerId);
+                DashboardResponse.WeatherSummary weather = weatherSummary(authentication);
 
                 DashboardResponse.FarmerSummary farmerSummary = new DashboardResponse.FarmerSummary(
                                 farmer.getId(),
@@ -146,32 +153,62 @@ public class DashboardService {
                                 recentAlerts,
                                 recentAdvisories,
                                 recentNotifications,
-                                marketSummaries);
+                                marketSummaries,
+                                weather);
         }
 
+        private DashboardResponse.WeatherSummary weatherSummary(Authentication authentication) {
+                WeatherForecastResponse forecast;
+                try {
+                        forecast = weatherService.getForecast(authentication);
+                } catch (WeatherService.FarmerProfileNotFoundException
+                                | WeatherService.FarmerCoordinatesMissingException
+                                | WeatherService.InvalidCoordinatesException
+                                | OpenMeteoClient.MalformedWeatherResponseException exception) {
+                        return null;
+                }
+                if (forecast == null || forecast.current() == null || forecast.hourly() == null
+                                || forecast.hourly().timestamps() == null || forecast.hourly().timestamps().isEmpty()) {
+                        return null;
+                }
+
+                return new DashboardResponse.WeatherSummary(
+                                forecast.timezone(),
+                                forecast.current(),
+                                forecast.hourly().timestamps().get(0),
+                                firstValue(forecast.hourly().precipitationProbability()),
+                                firstValue(forecast.hourly().precipitation()));
+        }
+
+        private <T> T firstValue(List<T> values) {
+                return values == null || values.isEmpty() ? null : values.get(0);
+        }
+
+        @SuppressWarnings("unchecked")
         private List<DashboardResponse.MarketSummary> marketSummaries(
                         Long farmerId) {
                 List<String> cropNames = cropRepository
-                        .findByFarmerId(farmerId)
-                        .stream()
-                        .map(Crop::getCropName)
-                        .filter(this::isValidCropName)
-                        .distinct()
-                        .toList();
+                                .findByFarmerId(farmerId)
+                                .stream()
+                                .map(Crop::getCropName)
+                                .filter(this::isValidCropName)
+                                .distinct()
+                                .toList();
 
                 Map<String, List<MarketPriceResponse>> pricesByCrop = marketService.getLatestForCrops(cropNames);
 
                 return cropNames.stream()
-                        .map(cropName -> pricesByCrop.getOrDefault(cropName, List.of()))
-                        .filter(prices -> prices != null && !prices.isEmpty())
-                        .map(this::toMarketSummary)
-                        .toList();
+                                .map(cropName -> pricesByCrop.getOrDefault(cropName, List.of()))
+                                .filter(prices -> prices != null && !prices.isEmpty())
+                                .map(this::toMarketSummary)
+                                .toList();
         }
 
         private boolean isValidCropName(String cropName) {
                 return cropName != null && !cropName.isBlank();
         }
 
+        @SuppressWarnings("unchecked")
         private DashboardResponse.MarketSummary toMarketSummary(
                         List<MarketPriceResponse> prices) {
 

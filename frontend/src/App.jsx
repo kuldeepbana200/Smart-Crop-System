@@ -6,7 +6,7 @@ import Register from "./pages/Register";
 import VerifyOTP from "./pages/VerifyOTP";
 import Onboarding from "./pages/Onboarding";
 import Welcome from "./pages/Welcome";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/FarmerDashboard";
 import MyCrops from "./pages/MyCrops";
 import Weather from "./pages/Weather";
 import Advisories from "./pages/Advisories";
@@ -273,7 +273,7 @@ function App() {
                 path="/onboarding"
                 element={
                   // <ProtectedRoute skipProfileCheck>
-                    <Onboarding />
+                  <Onboarding />
                   // </ProtectedRoute>
                 }
               />
@@ -281,7 +281,7 @@ function App() {
                 path="/welcome"
                 element={
                   //<ProtectedRoute skipProfileCheck>
-                    <Welcome />
+                  <Welcome />
                   //</ProtectedRoute>
                 }
               />
@@ -292,15 +292,15 @@ function App() {
                 path="/dashboard"
                 element={
                   //<ProtectedRoute>
-                    <Dashboard />
-                 // </ProtectedRoute>
+                  <Dashboard />
+                  // </ProtectedRoute>
                 }
               />
               <Route
                 path="/crops"
                 element={
-                 // <ProtectedRoute>
-                    <MyCrops />
+                  // <ProtectedRoute>
+                  <MyCrops />
                   //</ProtectedRoute>
                 }
               />
@@ -308,55 +308,55 @@ function App() {
                 path="/weather"
                 element={
                   //<ProtectedRoute>
-                    <Weather />
-                 // </ProtectedRoute>
+                  <Weather />
+                  // </ProtectedRoute>
                 }
               />
               <Route
                 path="/advisories"
                 element={
-                 /// <ProtectedRoute>
-                    <Advisories />
-                 /// </ProtectedRoute>
+                  /// <ProtectedRoute>
+                  <Advisories />
+                  /// </ProtectedRoute>
                 }
               />
               <Route
                 path="/alerts"
                 element={
-                 // <ProtectedRoute>
-                    <RiskAlerts />
-                 // </ProtectedRoute>
+                  // <ProtectedRoute>
+                  <RiskAlerts />
+                  // </ProtectedRoute>
                 }
               />
               <Route
                 path="/market"
                 element={
                   //<ProtectedRoute>
-                    <MarketPrices />
-                 /// </ProtectedRoute>
+                  <MarketPrices />
+                  /// </ProtectedRoute>
                 }
               />
               <Route
                 path="/education"
                 element={
-                //  <ProtectedRoute>
-                    <Education />
+                  //  <ProtectedRoute>
+                  <Education />
                   ///</ProtectedRoute>
                 }
               />
               <Route
                 path="/notifications"
                 element={
-                 // <ProtectedRoute>
-                    <Notifications />
-                 // </ProtectedRoute>
+                  // <ProtectedRoute>
+                  <Notifications />
+                  // </ProtectedRoute>
                 }
               />
               <Route
                 path="/profile"
                 element={
-                 // <ProtectedRoute>
-                    <Profile />
+                  // <ProtectedRoute>
+                  <Profile />
                   //</ProtectedRoute>
                 }
               />

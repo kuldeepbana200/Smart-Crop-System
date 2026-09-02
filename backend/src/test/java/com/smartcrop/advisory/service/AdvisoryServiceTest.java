@@ -25,6 +25,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,7 +36,6 @@ class AdvisoryServiceTest {
         private FarmerRepository farmerRepository;
         private CropRepository cropRepository;
         private WeatherService weatherService;
-        private AdvisoryRuleEngine ruleEngine;
         private RiskEngine riskEngine;
         private GroqAdvisoryService groqAdvisoryService;
         private NotificationService notificationService;
@@ -49,7 +49,6 @@ class AdvisoryServiceTest {
                 farmerRepository = mock(FarmerRepository.class);
                 cropRepository = mock(CropRepository.class);
                 weatherService = mock(WeatherService.class);
-                ruleEngine = mock(AdvisoryRuleEngine.class);
                 riskEngine = mock(RiskEngine.class);
                 groqAdvisoryService = mock(GroqAdvisoryService.class);
                 notificationService = mock(NotificationService.class);
@@ -60,7 +59,6 @@ class AdvisoryServiceTest {
                                 farmerRepository,
                                 cropRepository,
                                 weatherService,
-                                ruleEngine,
                                 riskEngine,
                                 groqAdvisoryService,
                                 notificationService,
@@ -117,7 +115,7 @@ class AdvisoryServiceTest {
                 when(weatherService.getForecast(authentication))
                                 .thenReturn(weather);
 
-                when(ruleEngine.generate(crop, weather))
+                when(groqAdvisoryService.generateForFarmer(any(), any(), any(), any(), any()))
                                 .thenReturn(List.of(
                                                 new AdvisoryRecommendation(
                                                                 "RAINFALL",
@@ -139,14 +137,13 @@ class AdvisoryServiceTest {
                 verify(weatherService)
                                 .getForecast(authentication);
 
-                verify(ruleEngine)
-                                .generate(crop, weather);
+                verify(groqAdvisoryService)
+                                .generateForFarmer(any(), any(), any(), any(), any());
 
                 verify(advisoryRepository)
                                 .save(any());
         }
 
-        @Test
         @Test
         void generatesGroqAdvisoryAndCreatesHighPriorityNotification() {
 
@@ -204,7 +201,7 @@ class AdvisoryServiceTest {
 
                 advisoryService.generateAdvisory(new GenerateAdvisoryRequest(30L, "en"), authentication);
 
-                verify(notificationService).notifyAdvisoryGenerated(user, crop, any());
+                verify(notificationService).notifyAdvisoryGenerated(eq(user), eq(crop), any());
         }
 
         @Test

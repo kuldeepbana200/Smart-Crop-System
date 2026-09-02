@@ -1,7 +1,6 @@
 package com.smartcrop.auth.entity;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -31,6 +30,7 @@ public class User {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     @Column(nullable = false, columnDefinition = "boolean default false")
@@ -41,11 +41,12 @@ public class User {
 
     public User() {
         this.phoneVerified = false;
-        this.preferredLanguage = "en"; // default to English
+        this.preferredLanguage = "en";
     }
 
     public User(Long id, String name, String email, String phone, String password,
             Role role, LocalDateTime createdAt, LocalDateTime updatedAt) {
+
         this.id = id;
         this.name = name;
         this.email = email;
@@ -55,7 +56,7 @@ public class User {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.phoneVerified = false;
-        this.preferredLanguage = "en"; // default to English
+        this.preferredLanguage = "en";
     }
 
     public Long getId() {

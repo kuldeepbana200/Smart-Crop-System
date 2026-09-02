@@ -3,7 +3,7 @@ package com.smartcrop.crop.controller;
 import com.smartcrop.crop.dto.CreateCropRequest;
 import com.smartcrop.crop.dto.CropResponse;
 import com.smartcrop.crop.service.CropService;
-import com.smartcrop.crop.service.CropService.CropNotFoundException;
+
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

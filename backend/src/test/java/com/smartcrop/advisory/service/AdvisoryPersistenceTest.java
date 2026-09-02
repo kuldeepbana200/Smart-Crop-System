@@ -34,7 +34,9 @@ class AdvisoryPersistenceTest {
         private FarmerRepository farmerRepository;
         private CropRepository cropRepository;
         private WeatherService weatherService;
-        private AdvisoryRuleEngine ruleEngine;
+        private com.smartcrop.risk.engine.RiskEngine riskEngine;
+        private com.smartcrop.advisory.service.GroqAdvisoryService groqAdvisoryService;
+        private com.smartcrop.notification.service.NotificationService notificationService;
         private AdvisoryRepository advisoryRepository;
         private AdvisoryService advisoryService;
         private Authentication authentication;
@@ -48,7 +50,9 @@ class AdvisoryPersistenceTest {
                 farmerRepository = mock(FarmerRepository.class);
                 cropRepository = mock(CropRepository.class);
                 weatherService = mock(WeatherService.class);
-                ruleEngine = mock(AdvisoryRuleEngine.class);
+                riskEngine = mock(com.smartcrop.risk.engine.RiskEngine.class);
+                groqAdvisoryService = mock(com.smartcrop.advisory.service.GroqAdvisoryService.class);
+                notificationService = mock(com.smartcrop.notification.service.NotificationService.class);
                 advisoryRepository = mock(AdvisoryRepository.class);
 
                 advisoryService = new AdvisoryService(
@@ -56,7 +60,9 @@ class AdvisoryPersistenceTest {
                                 farmerRepository,
                                 cropRepository,
                                 weatherService,
-                                ruleEngine,
+                                riskEngine,
+                                groqAdvisoryService,
+                                notificationService,
                                 advisoryRepository);
 
                 authentication = mock(Authentication.class);
@@ -117,7 +123,19 @@ class AdvisoryPersistenceTest {
                 when(weatherService.getForecast(authentication))
                                 .thenReturn(weather);
 
-                when(ruleEngine.generate(crop, weather))
+                when(riskEngine.assess(crop, weather))
+                                .thenReturn(new com.smartcrop.risk.engine.RiskEngine.RiskResult(
+                                                30,
+                                                "LOW",
+                                                List.of(),
+                                                "Monitor crop."));
+
+                when(groqAdvisoryService.generateForFarmer(
+                                any(com.smartcrop.farmer.entity.Farmer.class),
+                                any(Crop.class),
+                                any(WeatherForecastResponse.class),
+                                any(com.smartcrop.risk.engine.RiskEngine.RiskResult.class),
+                                any(String.class)))
                                 .thenReturn(List.of(recommendation));
 
                 when(advisoryRepository.save(any(Advisory.class)))

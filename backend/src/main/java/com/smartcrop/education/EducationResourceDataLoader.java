@@ -5,7 +5,6 @@ import com.smartcrop.education.repository.EducationResourceRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -16,12 +15,9 @@ import java.util.List;
 public class EducationResourceDataLoader implements ApplicationRunner {
 
         private final EducationResourceRepository educationResourceRepository;
-        private final Environment environment;
 
-        public EducationResourceDataLoader(EducationResourceRepository educationResourceRepository,
-                        Environment environment) {
+        public EducationResourceDataLoader(EducationResourceRepository educationResourceRepository) {
                 this.educationResourceRepository = educationResourceRepository;
-                this.environment = environment;
         }
 
         @Override

@@ -1,10 +1,12 @@
 package com.smartcrop.crop.entity;
 
+import com.smartcrop.distress.entity.DistressAlert;
 import com.smartcrop.farmer.entity.Farmer;
 import jakarta.persistence.*;
-
+import java.util.List;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "crops")
@@ -79,6 +81,9 @@ public class Crop {
         this.sowingDate = sowingDate;
         this.expectedHarvestDate = expectedHarvestDate;
     }
+
+    @OneToMany(mappedBy = "crop", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<DistressAlert> distressAlerts = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

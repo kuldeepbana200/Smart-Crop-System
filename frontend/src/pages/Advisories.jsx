@@ -201,7 +201,8 @@ const Advisories = () => {
                 </h2>
                 <p className="text-sm text-slate-500">
                   {latestAdvice.cropStage || "Crop stage not set"} •{" "}
-                  {formatDate(latestAdvice.generatedAt)}
+                  {latestAdvice.lifecycle || "Lifecycle not available"} •{" "}
+                  Planted: {formatDate(latestAdvice.sowingDate)}
                 </p>
               </div>
               <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
@@ -236,7 +237,8 @@ const Advisories = () => {
                     </p>
                     <p className="text-sm text-slate-500">
                       {advisory.cropStage || "Crop stage not set"} •{" "}
-                      {formatDate(advisory.generatedAt)}
+                      {advisory.lifecycle || "Lifecycle not available"} •{" "}
+                      Planted: {formatDate(advisory.sowingDate)}
                     </p>
                   </div>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">

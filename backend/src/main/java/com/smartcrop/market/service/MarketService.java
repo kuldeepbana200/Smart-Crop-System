@@ -149,6 +149,7 @@ public class MarketService {
         // PRICE HISTORY
         // =========================================================
 
+        @SuppressWarnings("unchecked")
         public List<MarketPriceResponse> getPriceHistoryForFarmer(
                         Farmer farmer,
                         String cropName,
@@ -175,6 +176,7 @@ public class MarketService {
                 return getPriceHistory(cropName, state, startDate, endDate);
         }
 
+        @SuppressWarnings("unchecked")
         public List<MarketPriceResponse> getPriceHistory(
                         String cropName,
                         String state,

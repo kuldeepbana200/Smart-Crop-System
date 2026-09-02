@@ -39,7 +39,6 @@ public class GroqMarketDataService {
     private static final Logger log = LoggerFactory.getLogger(GroqMarketDataService.class);
     private static final String GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
     private static final String GROQ_MODEL = "openai/gpt-oss-20b";
-    private static final Duration CACHE_TTL = Duration.ofMinutes(30);
 
     private final String groqApiKey;
     private final CropRepository cropRepository;

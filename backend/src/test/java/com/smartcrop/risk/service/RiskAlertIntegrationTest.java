@@ -163,7 +163,8 @@ class RiskAlertIntegrationTest {
                 when(weatherService.getForecast(authentication)).thenReturn(weather);
                 when(alertRepository.findByFarmerIdAndCropIdAndConditionKeyAndStatus(
                                 20L, 30L, "EXTREME_HEAT|HEAVY_RAINFALL", AlertStatus.OPEN))
-                                .thenReturn(Optional.empty(), Optional.of(new DistressAlert()));
+                                .thenReturn(Optional.empty())
+                                .thenReturn(Optional.of(new DistressAlert()));
 
                 riskService.assessRisk(new AssessRiskRequest(30L), authentication);
                 riskService.assessRisk(new AssessRiskRequest(30L), authentication);
